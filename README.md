@@ -14,6 +14,12 @@ Framework-agnostic timeline slider. Modern TypeScript rebuild of
   where only one slide is on screen, list/listitem roles and nothing hidden where every entry is,
   plus a polite live region announcing the current date on change
 
+## Install
+
+```sh
+npm install @steffenr/timelinr
+```
+
 ## Usage
 
 ```html
@@ -34,7 +40,7 @@ Framework-agnostic timeline slider. Modern TypeScript rebuild of
 ```
 
 ```ts
-import { Timelinr } from 'timelinr';
+import { Timelinr } from '@steffenr/timelinr';
 
 const t = new Timelinr(document.querySelector('[data-timelinr]')!, {
   variant: 'rail',     // 'rail' | 'stack' | 'tabs' | 'list' | 'list-alternating'; overrides the attribute
@@ -55,7 +61,7 @@ t.destroy();
 Or zero-config:
 
 ```ts
-import { autoInit } from 'timelinr';
+import { autoInit } from '@steffenr/timelinr';
 autoInit(); // initializes every [data-timelinr] on the page
 ```
 

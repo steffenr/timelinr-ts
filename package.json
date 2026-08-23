@@ -1,9 +1,27 @@
 {
-  "name": "timelinr",
+  "name": "@steffenr/timelinr",
   "version": "1.0.0",
   "description": "Framework-agnostic timeline slider. Modern TypeScript rebuild of jQuery Timelinr.",
   "type": "module",
   "license": "MIT",
+  "author": "Steffen Rühlmann (https://github.com/steffenr)",
+  "homepage": "https://github.com/steffenr/timelinr#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steffenr/timelinr.git"
+  },
+  "bugs": {
+    "url": "https://github.com/steffenr/timelinr/issues"
+  },
+  "keywords": [
+    "timeline",
+    "slider",
+    "carousel",
+    "typescript",
+    "framework-agnostic",
+    "zero-dependency",
+    "accessible"
+  ],
   "main": "./dist/timelinr.js",
   "module": "./dist/timelinr.js",
   "types": "./dist/index.d.ts",
@@ -25,7 +43,11 @@
     "build:lib": "vite build && tsc -p tsconfig.build.json --emitDeclarationOnly && node scripts/build-css.mjs",
     "build:examples": "node scripts/build-examples.mjs",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm test && npm run typecheck && npm run build:lib"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
