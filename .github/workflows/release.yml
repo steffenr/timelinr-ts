@@ -1,0 +1,30 @@
+name: Release
+
+# Publishes to npm whenever a v* tag is pushed. dist/ is NOT committed — it is
+# built here from the tagged source. prepublishOnly (test + typecheck +
+# build:lib) runs automatically as part of `npm publish`, so the tarball can
+# never ship untested or stale.
+#
+# Requires the NPM_TOKEN repository secret (an npm automation/granular token
+# with access to @steffenr/timelinr).
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm provenance
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm publish --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
