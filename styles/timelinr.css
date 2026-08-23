@@ -1,0 +1,1597 @@
+/* timelinr — tokens, shared base, and one block per visual variant.
+   Theming: override the custom properties below via a theme attribute
+   ([data-timelinr-theme="…"]) or your own CSS.
+
+   File order:
+     1. tokens
+     2. shared base   — everything every variant needs
+     3. variant: rail
+     4. variant: stack
+     5. variant: tabs
+     6. variant: list        — shared by `list` and `list-alternating`
+     7. variant: list-alternating — only what differs from 6
+     8. responsive
+
+   Layout is selected purely by [data-timelinr-variant], which the library
+   resolves and writes onto the root. No rule here keys off the orientation
+   attribute: orientation is an input the library reads, never one it writes
+   back, so a page authored with only a variant carries no orientation
+   attribute at all and would not match such a selector.
+
+   Two variants, one block. `list` and `list-alternating` are the same widget
+   — every entry on screen, year + medallion + title + body per entry, --tl-i
+   interleaving, the root as scroll container — differing only in where the
+   rail runs and which side an entry sits on. So section 6 is written for both
+   via `[data-timelinr]:is([data-timelinr-variant='list'],
+   [data-timelinr-variant='list-alternating'])` and section 7 overrides just
+   the difference. `:is()` takes the specificity of its most specific
+   argument, so that pair is exactly as specific as the plain
+   `[data-timelinr][data-timelinr-variant='…']` it replaced — which also means
+   section 7's selectors TIE with section 6's and win only on source order.
+   Section 7 must therefore stay below section 6. */
+
+/* ============================================================
+   1. tokens
+   ============================================================ */
+
+[data-timelinr] {
+  --tl-bg: #ffffff;
+  --tl-fg: #1a1a1a;
+  --tl-muted: #6b6b6b;
+  --tl-accent: #0a66c2;
+  --tl-border: #d9d9d9;
+  --tl-speed: 500ms;
+  --tl-radius: 0.375rem;
+  /* consumed only by `list`, declared here so it is overridable at the root
+     like every other token */
+  --tl-row: 5rem;
+  --tl-visible: 5;
+  /* consumed by the strip variants (`rail`, `tabs`). --tl-date-min is the
+     narrowest a dates column may get before the strip scrolls instead of
+     compressing further; raise it for labels longer than a year. --tl-fade is
+     how much of the strip's edge dissolves to signal there is more that way. */
+  --tl-date-min: 5rem;
+  --tl-fade: 2rem;
+
+  position: relative;
+  color: var(--tl-fg);
+  background: var(--tl-bg);
+}
+
+/* ============================================================
+   2. shared base
+   ============================================================ */
+
+/* screen-reader-only: used for the live status region */
+.tl-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- issues viewport ---------- */
+
+[data-timelinr] [data-timelinr-issues] {
+  overflow: hidden;
+}
+
+[data-timelinr] [data-timelinr-issues] > ul {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  transition: transform var(--tl-speed);
+}
+
+/* The horizontal sliding variants. The percentage is -100% * index, never
+   divided by --tl-count: the ul has no width of its own, so its reference
+   box is exactly one slide (each li is `flex: 0 0 100%` against that same
+   box) and -100% already means "one whole slide". Dividing by count moves
+   only 1/count as far — a bug invisible at index 0 or 1 and obvious at
+   count - 1. Verify there. */
+[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-issues] > ul,
+[data-timelinr][data-timelinr-variant='tabs'] [data-timelinr-issues] > ul {
+  transform: translateX(calc(var(--tl-index, 0) * -100%));
+}
+
+/* ---------- slide grid ---------- */
+
+[data-timelinr] [data-timelinr-issues] li {
+  flex: 0 0 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 1rem;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, var(--tl-img-width, 26rem)) minmax(0, 1fr);
+  gap: 0.25rem 1.5rem;
+  align-content: center;
+  opacity: 0.25;
+  transition: opacity var(--tl-speed);
+}
+
+[data-timelinr] [data-timelinr-issues] li.is-selected {
+  opacity: 1;
+}
+
+[data-timelinr] [data-timelinr-issues] h3 {
+  grid-column: 2;
+  align-self: end;
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+[data-timelinr] [data-timelinr-issues] p {
+  grid-column: 2;
+  margin: 0;
+  max-width: 65ch;
+  line-height: 1.5;
+}
+
+/* ---------- issue images ---------- */
+
+[data-timelinr] [data-timelinr-issues] img {
+  grid-row: 1 / 3;
+  align-self: center;
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--tl-radius);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+  opacity: 0.45;
+  filter: saturate(0.55);
+  transform: scale(0.96) translateY(0.25rem);
+  transition:
+    opacity var(--tl-speed),
+    filter var(--tl-speed),
+    transform var(--tl-speed);
+}
+
+[data-timelinr] [data-timelinr-issues] li.is-selected img {
+  opacity: 1;
+  filter: saturate(1);
+  transform: scale(1) translateY(0);
+}
+
+/* ---------- dates strip: the overflow affordance ---------- */
+
+/* Each variant owns its own dates LAYOUT — there is no shared strip. What is
+   shared is what happens when that layout runs out of room, which `rail` and
+   `tabs` both do. Both hide the scrollbar, so on its own the overflow was
+   completely invisible: nothing on screen said there were more dates, and the
+   only way to find them was to guess that the strip could be dragged.
+   This block is the affordance — an edge that dissolves on whichever side has
+   more to reach.
+   `is-overflow-start` / `is-overflow-end` are written by the library onto
+   [data-timelinr-dates] from the strip's scroll position, and they are the
+   only inputs here. They live on the WRAPPER in both variants even though the
+   box that actually scrolls is not the same element in the two (see below),
+   so there is one place to look for the state and one place for the library
+   to write it. --tl-fade-s/--tl-fade-e then inherit down to whichever box
+   needs them.
+   Physical left/right, not logical: the strip assumes LTR, as does every other
+   horizontal measurement in this file (rail's fill is anchored with `left`,
+   list's text is held off the rail with `padding-right`). */
+
+[data-timelinr] [data-timelinr-dates] {
+  --tl-fade-s: 0px;
+  --tl-fade-e: 0px;
+}
+
+[data-timelinr] [data-timelinr-dates].is-overflow-start {
+  --tl-fade-s: var(--tl-fade);
+}
+
+[data-timelinr] [data-timelinr-dates].is-overflow-end {
+  --tl-fade-e: var(--tl-fade);
+}
+
+/* The one rule that has to name both variants, because WHICH box scrolls
+   differs between them and the mask has to go on the box that does:
+   - rail scrolls the wrapper, because its `ul` must keep a reference box the
+     full width of the content or the progress line drawn on it stops at the
+     viewport edge (see section 3).
+   - tabs scrolls the `ul`, because its wrapper is the flex row that holds the
+     scroll buttons, and a button inside the scrolling box would scroll away
+     with the pills (see section 5).
+   With both fades at 0 the gradient is two hard stops at the very edges and
+   the mask is a no-op, so the untouched state costs nothing. */
+[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates],
+[data-timelinr][data-timelinr-variant='tabs'] [data-timelinr-dates] > ul {
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--tl-fade-s),
+    #000 calc(100% - var(--tl-fade-e)),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--tl-fade-s),
+    #000 calc(100% - var(--tl-fade-e)),
+    transparent 100%
+  );
+}
+
+/* WebKit's counterpart to `scrollbar-width: none`. Both candidates are named:
+   the wrapper scrolls in rail, the `ul` in tabs. */
+[data-timelinr] [data-timelinr-dates]::-webkit-scrollbar,
+[data-timelinr] [data-timelinr-dates] > ul::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- focus rings ---------- */
+
+[data-timelinr] [data-timelinr-dates] a:focus-visible,
+[data-timelinr] button[data-timelinr-prev]:focus-visible,
+[data-timelinr] button[data-timelinr-next]:focus-visible {
+  outline: 2px solid var(--tl-accent);
+  outline-offset: 2px;
+}
+
+/* ---------- prev / next buttons ---------- */
+/* Absolutely positioned against [data-timelinr] (which is why the root has
+   `position: relative`); each variant overrides the placement it needs.
+   The default here is the left/right edge pair, vertically centered.
+   The icon is a chevron (Lucide, ISC licensed, https://lucide.dev)
+   rendered as a CSS mask so it tints via background-color like the rest of
+   the theme, rather than an embedded <svg> in markup — keeps the button's
+   own text content (`‹`/`›` in the example markup) as the only DOM content,
+   collapsed via font-size:0; aria-label still carries the accessible name. */
+
+[data-timelinr] button[data-timelinr-prev],
+[data-timelinr] button[data-timelinr-next] {
+  position: absolute;
+  top: 50%;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: transparent;
+  font-size: 0;
+  line-height: 0;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+[data-timelinr] button[data-timelinr-prev] {
+  left: 0.5rem;
+}
+
+[data-timelinr] button[data-timelinr-next] {
+  right: 0.5rem;
+}
+
+[data-timelinr] button[data-timelinr-prev]::before,
+[data-timelinr] button[data-timelinr-next]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: var(--tl-muted);
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: 60%;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: 60%;
+  transition: background-color var(--tl-speed);
+}
+
+[data-timelinr] button[data-timelinr-prev]::before {
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m15 18-6-6 6-6'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m15 18-6-6 6-6'/%3E%3C/svg%3E");
+}
+
+[data-timelinr] button[data-timelinr-next]::before {
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
+}
+
+[data-timelinr] button[data-timelinr-prev]:hover:not(:disabled)::before,
+[data-timelinr] button[data-timelinr-next]:hover:not(:disabled)::before {
+  background-color: var(--tl-accent);
+}
+
+[data-timelinr] button[data-timelinr-prev]:disabled,
+[data-timelinr] button[data-timelinr-next]:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* ---------- themes ---------- */
+
+[data-timelinr][data-timelinr-theme='dark'] {
+  --tl-bg: #101319;
+  --tl-fg: #e8e8e8;
+  --tl-muted: #9aa0a8;
+  --tl-accent: #4da3ff;
+  --tl-border: #2c3138;
+}
+
+[data-timelinr][data-timelinr-theme='ocean'] {
+  --tl-bg: #dcedf5;
+  --tl-fg: #0d2b3d;
+  --tl-muted: #3d6479;
+  --tl-accent: #086478;
+  --tl-border: #a9d3e3;
+}
+
+[data-timelinr][data-timelinr-theme='forest'] {
+  --tl-bg: #dcefe1;
+  --tl-fg: #163b26;
+  --tl-muted: #3c6049;
+  --tl-accent: #256b46;
+  --tl-border: #a9d9bc;
+}
+
+[data-timelinr][data-timelinr-theme='sunset'] {
+  --tl-bg: #fbe3d2;
+  --tl-fg: #4a2413;
+  --tl-muted: #7a5138;
+  --tl-accent: #9c3f22;
+  --tl-border: #edc4a0;
+}
+
+/* ---------- reduced motion ---------- */
+
+/* Two traps, both verified in Chrome, both of which silently left motion
+   running under `reduce`:
+   1. `*` does NOT match pseudo-elements, and almost every moving decoration
+      in this file is one — rail's progress fill animates its WIDTH, and the
+      dots and list medallions animate colour. The ::before/::after
+      selectors are what actually reach them.
+   2. `scroll-behavior: auto` needs !important here. Every
+      `scroll-behavior: smooth` in this file is set by a selector more
+      specific than this one, so without !important they all kept scrolling
+      smoothly under `reduce`. There are three boxes to undo, and they are
+      three different elements:
+        - the ROOT, for the list variants — those scroll the root rather than
+          their dates column, because the column is `display: contents` there
+          and generates no scrollable box at all;
+        - [data-timelinr-dates], the strip scroller in `rail`;
+        - [data-timelinr-dates] > ul, the strip scroller in `tabs`.
+      All three are named below. This also reaches the strip's scroll buttons
+      without their needing to know anything: they call scrollBy() with no
+      `behavior`, which per CSSOM-View defers to the element's computed
+      scroll-behavior — so silencing it here silences them too, and there is
+      no second reduced-motion check to keep in step in the JS. */
+@media (prefers-reduced-motion: reduce) {
+  [data-timelinr] *,
+  [data-timelinr] *::before,
+  [data-timelinr] *::after {
+    transition: none !important;
+  }
+
+  [data-timelinr],
+  [data-timelinr] [data-timelinr-dates],
+  [data-timelinr] [data-timelinr-dates] > ul {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================
+   3. variant: rail
+   ============================================================ */
+/* The progress line used to be why this strip could not scroll at all, and
+   the way out is a distinction the old note missed. A spanning line cannot be
+   drawn over an `overflow-x: auto` row — the ul's reference box is then the
+   visible scrollport, not the full content, so the line stops short of every
+   entry scrolled out of view. But that is only true when the UL ITSELF is the
+   scroller. Move the overflow up one level, onto [data-timelinr-dates], and
+   the ul goes back to being an ordinary non-scrolling block whose box is its
+   full content width: the ::before track and ::after fill span all of it and
+   scroll along with the dots, exactly as if nothing had changed.
+
+   What made that safe is the ul's width being DETERMINISTIC rather than
+   content-derived. `width: max(100%, count * --tl-date-min)` fixes it from
+   --tl-count, which the library already publishes, so every column is
+   ul-width/count wide in both regimes — 1fr each while the strip fits, all
+   exactly --tl-date-min once it doesn't — and the dot-centre arithmetic below
+   holds unchanged either way. `width: max-content` would also have widened
+   the ul, but the columns would then size to their text, and since the
+   SELECTED date is a third larger than the rest (see a.is-selected) the whole
+   strip would resize on every navigation.
+
+   Track geometry follows from `grid-auto-columns: 1fr`: with `--tl-count`
+   equal columns, dot `i` sits at the centre of column `i`, i.e. at
+   `(i + 0.5) / count` of the ul's width. So the track runs dot-to-dot —
+   inset by half a column (`50% / count`) at each end, width
+   `100% - 100% / count` — rather than edge to edge, and the fill is that
+   same track width scaled by `index / (count - 1)`. Getting this wrong is
+   invisible at index 0 (zero-width fill either way) and shows up as a fill
+   that stops short of, or overshoots, the active dot at middle indices —
+   measure the fill's right edge against the dot's centre, don't eyeball
+   it. */
+
+[data-timelinr][data-timelinr-variant='rail'] {
+  padding-inline: 3rem;
+
+  /* The SELECTED date's font size, declared once: the is-selected rule and
+     the line-box reservation on the date links both derive from it, so they
+     cannot drift apart. */
+  --tl-date-active: 1.375rem;
+
+  /* ...and that size's line box, at the line-height the date links pin.
+     Consumed only by the reservation; see the date-link rule below. */
+  --tl-date-line: calc(var(--tl-date-active) * 1.2);
+}
+
+/* the scroller — the ul below stays an ordinary block, which is the whole
+   point (see the note above) */
+[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] {
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+}
+
+[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] > ul {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  align-items: end;
+  gap: 0;
+  margin: 0.75rem 0 2rem;
+  padding: 0;
+  list-style: none;
+  overflow: visible;
+
+  /* equal columns in both regimes; see the note above for why this is a
+     calc() off --tl-count and not `max-content` */
+  width: max(100%, calc(var(--tl-count, 1) * var(--tl-date-min)));
+}
+
+/* track + fill: both sit on the row of dots, behind the links, and both
+   start at the first dot's centre — half a column in from the ul's edge */
+[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] > ul::before,
+[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] > ul::after {
+  content: '';
+  position: absolute;
+  left: calc(50% / var(--tl-count, 1));
+  bottom: 0.2rem;
+  height: 2px;
+  border-radius: 1px;
+}
+
+/* first dot's centre to last dot's centre: the full width less one column */
+[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] > ul::before {
+  width: calc(100% - 100% / var(--tl-count, 1));
+  background: var(--tl-border);
+}
+
+/* the track width scaled to the active dot. max(1, …) guards a single-item
+   timeline against dividing by zero — there the track width is itself 0, so
+   the fill collapses to 0 rather than going negative */
+[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] > ul::after {
+  width: calc(
+    (100% - 100% / var(--tl-count, 1)) * var(--tl-index, 0) /
+      max(1, var(--tl-count, 1) - 1)
+  );
+  background: var(--tl-accent);
+  transition: width var(--tl-speed);
+}
+
+[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] a {
+  position: relative;
+  display: block;
+
+  /* Every link occupies the ACTIVE size's line box, whatever its own font
+     size is doing. The top padding absorbs exactly the difference between the
+     reserved box (--tl-date-line) and the link's own line box (1.2em of its
+     own font-size) — and because the em term resolves against the ANIMATING
+     font-size, the sum stays constant through every frame of the transition,
+     not merely at its endpoints. Without this, the strip's height followed
+     whichever year was selected, and mid-navigation — old year shrinking
+     while the new one grows — the whole strip dipped and rebounded, bouncing
+     the slide below on every click (measured: 57.19px -> 52.38px -> 57.19px).
+     The active year grows UPWARD into space the other years already hold;
+     nothing outside the links ever moves.
+
+     line-height is pinned because the reservation is stated in line boxes:
+     inheriting the page's line-height would make it wrong by whatever the
+     consumer set. em, not rem, for the own-size term — a rem would freeze the
+     padding at the unselected size and reintroduce the dip. */
+  line-height: 1.2;
+  padding-top: calc(var(--tl-date-line) - 1.2em);
+  padding-bottom: 1.1rem;
+  color: var(--tl-muted);
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--tl-speed), font-size var(--tl-speed);
+}
+
+[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] a::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -0.05rem;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--tl-bg);
+  box-shadow: 0 0 0 2px var(--tl-border);
+  transform: translateX(-50%);
+  transition: background var(--tl-speed), box-shadow var(--tl-speed);
+}
+
+[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] a:hover {
+  color: var(--tl-accent);
+}
+
+[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] a.is-selected {
+  color: var(--tl-accent);
+  font-size: var(--tl-date-active);
+}
+
+[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] a.is-selected::after {
+  background: var(--tl-accent);
+  box-shadow: 0 0 0 2px var(--tl-accent);
+}
+
+/* circular edge arrows, replacing the bare chevrons */
+[data-timelinr][data-timelinr-variant='rail'] button[data-timelinr-prev],
+[data-timelinr][data-timelinr-variant='rail'] button[data-timelinr-next] {
+  top: 1.5rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--tl-border);
+  border-radius: 50%;
+  background: var(--tl-bg);
+  transform: none;
+}
+
+[data-timelinr][data-timelinr-variant='rail'] button[data-timelinr-prev] {
+  left: 0;
+}
+
+[data-timelinr][data-timelinr-variant='rail'] button[data-timelinr-next] {
+  right: 0;
+}
+
+/* ============================================================
+   4. variant: stack
+   ============================================================ */
+
+/* The dates column is a clipped viewport scrolled by a fixed step. Every
+   date link has a FIXED height (--tl-date-step) regardless of the active
+   one's larger type — load-bearing: if the active row grew, the step would
+   stop matching real row height and the scroll position would drift
+   further out of sync with every navigation. `list` deliberately does not
+   use this approach, because its rows vary in height (see that block). */
+
+[data-timelinr][data-timelinr-variant='stack'] {
+  --tl-date-step: 3.25rem;
+  --tl-stack-dot: 0.6rem;
+  --tl-stack-dot-ring: 2px;
+  /* Where the rail runs, measured from the dates column's RIGHT edge. Both
+     the line and the dots derive their `right` from this one value, so they
+     cannot drift apart. It also has to clear the column's overflow clip:
+     the dot reaches --tl-stack-dot/2 + --tl-stack-dot-ring = 6.8px either
+     side of the rail, so 0.6rem (9.6px) leaves 2.8px of the ring inside the
+     clip edge. Shrinking it below 6.8px starts cutting the ring off again. */
+  --tl-stack-rail-inset: 0.6rem;
+
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  grid-template-rows: 1fr;
+  column-gap: 1.5rem;
+  height: var(--tl-height, 70vh);
+  padding-block: 2.25rem;
+  box-sizing: border-box;
+}
+
+[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-dates] {
+  grid-column: 1;
+  grid-row: 1;
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* continuous rail line down the column, centred on --tl-stack-rail-inset
+   (hence the half-width correction, so the line's centre lands on the rail
+   rather than its right edge) */
+[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-dates]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: calc(var(--tl-stack-rail-inset) - 1px);
+  width: 2px;
+  background: var(--tl-border);
+}
+
+[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-issues] {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 0;
+}
+
+[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-issues] > ul {
+  height: 100%;
+  flex-direction: column;
+  transform: translateY(calc(var(--tl-index, 0) * -100%));
+}
+
+/* the image's natural aspect-ratio height can exceed the fixed --tl-height
+   budget; cap it and let width follow, so it fits without overflowing */
+[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-issues] img {
+  width: auto;
+  max-height: 11rem;
+  align-self: start;
+  justify-self: start;
+}
+
+[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-dates] > ul {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: visible;
+  transition: transform var(--tl-speed);
+  /* the lower bound is only <= the 0rem upper bound once count >= 3; at
+     count 1 or 2 it evaluates positive (+6.5rem / +3.25rem), which would
+     make clamp()'s MIN exceed its MAX and collapse the result to that
+     positive MIN at every index — pushing the column down and leaving
+     blank space above the first date. min(0rem, …) guards it the same way
+     `rail`'s max(1, …) divisor guards its own degenerate-count case. */
+  transform: translateY(
+    clamp(
+      min(0rem, calc((3 - var(--tl-count, 1)) * var(--tl-date-step))),
+      calc((2 - var(--tl-index, 0)) * var(--tl-date-step)),
+      0rem
+    )
+  );
+}
+
+[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-dates] li {
+  flex: 0 0 auto;
+}
+
+[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-dates] a {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: var(--tl-date-step);
+  padding: 0 1.25rem 0 0.5rem;
+  color: var(--tl-muted);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color var(--tl-speed);
+}
+
+/* dot sits on the rail line drawn by [data-timelinr-dates]::after: same
+   --tl-stack-rail-inset, less half the dot's own width, so the two centres
+   coincide. The `a` stretches to the column, so its right edge and the
+   clipping column's right edge are the same line. */
+[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-dates] a::after {
+  content: '';
+  position: absolute;
+  right: calc(var(--tl-stack-rail-inset) - var(--tl-stack-dot) / 2);
+  top: 50%;
+  width: var(--tl-stack-dot);
+  height: var(--tl-stack-dot);
+  border-radius: 50%;
+  background: var(--tl-bg);
+  box-shadow: 0 0 0 var(--tl-stack-dot-ring) var(--tl-border);
+  transform: translateY(-50%);
+  transition: background var(--tl-speed), box-shadow var(--tl-speed);
+}
+
+/* active year becomes a filled pill */
+[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-dates] a.is-selected {
+  color: var(--tl-accent);
+}
+
+[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-dates] a.is-selected::before {
+  content: '';
+  position: absolute;
+  inset: 0.5rem 1.5rem 0.5rem 0;
+  border-radius: var(--tl-radius);
+  background: color-mix(in srgb, var(--tl-accent) 12%, transparent);
+}
+
+[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-dates] a.is-selected::after {
+  background: var(--tl-accent);
+  box-shadow: 0 0 0 var(--tl-stack-dot-ring) var(--tl-accent);
+}
+
+[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-counter] {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.25rem;
+  color: var(--tl-muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* arrows: top/bottom-centred, pointing up/down — the root's padding-block
+   above is what keeps them clear of the dates column and slide content */
+[data-timelinr][data-timelinr-variant='stack'] button[data-timelinr-prev],
+[data-timelinr][data-timelinr-variant='stack'] button[data-timelinr-next] {
+  top: auto;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+}
+
+[data-timelinr][data-timelinr-variant='stack'] button[data-timelinr-prev] {
+  top: 0;
+}
+
+[data-timelinr][data-timelinr-variant='stack'] button[data-timelinr-next] {
+  bottom: 0;
+}
+
+/* up/down chevron icons, shared by both variants whose dates column runs
+   vertically (stack scrolls it, list lets it grow) — the horizontal
+   left/right chevrons from the shared base are wrong for either */
+[data-timelinr][data-timelinr-variant='stack'] button[data-timelinr-prev]::before,
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) button[data-timelinr-prev]::before {
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m18 15-6-6-6 6'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m18 15-6-6-6 6'/%3E%3C/svg%3E");
+}
+
+[data-timelinr][data-timelinr-variant='stack'] button[data-timelinr-next]::before,
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) button[data-timelinr-next]::before {
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* ============================================================
+   5. variant: tabs
+   ============================================================ */
+
+/* Compact: years become pills, navigation is pills + dots, no arrows.
+   The pill row DOES scroll (unlike rail) on the UL itself, because tabs draws
+   no progress line and so has no reference box to protect — which leaves its
+   wrapper free to be the flex row that holds the scroll buttons. That is the
+   one structural difference from rail, and the reason the shared mask rule in
+   section 2 has to name the two variants separately.
+
+   tabs is also the variant that NEEDS its own scroll buttons: it is the only
+   one with no prev/next at all (its navigation is pills plus dots), so
+   without these there is no button anywhere that reaches an off-screen pill.
+   rail deliberately grows no equivalent — its edge arrows already sit in the
+   gutters at either end of the strip, and moving the selection scrolls the
+   active date into view, so a second pair beside them would be two controls
+   for one job. */
+
+[data-timelinr][data-timelinr-variant='tabs'] [data-timelinr-dates] {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+[data-timelinr][data-timelinr-variant='tabs'] [data-timelinr-dates] > ul {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+  /* the pills are the flexible part of the wrapper row; the buttons are not */
+  flex: 1;
+}
+
+/* (no ::-webkit-scrollbar rule here — the shared base already hides it
+   for both candidate scrollers) */
+
+/* ---------- the strip's scroll buttons ---------- */
+
+/* Created by the library, not taken from markup, for the same reason the dots
+   are: they exist only where the content overflows, which is a runtime fact
+   about width, not something an author can know when writing the HTML.
+   In flow rather than absolutely positioned — as flex items of the wrapper
+   they align with the pill row for free, with no magic offset to keep in step
+   with the pills' height. They must be OUTSIDE the scrolling `ul`, or they
+   would scroll away with the content they are there to reach.
+   `margin-bottom` matches the ul's `margin: 0 0 1rem` so the three items in
+   the row sit on a common baseline. */
+[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-prev],
+[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-next] {
+  flex: none;
+  position: relative;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+/* the chevrons, same Lucide masks and same tinting as the prev/next pair */
+[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-prev]::before,
+[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-next]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: var(--tl-muted);
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: 70%;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: 70%;
+  transition: background-color var(--tl-speed);
+}
+
+[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-prev]::before {
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m15 18-6-6 6-6'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m15 18-6-6 6-6'/%3E%3C/svg%3E");
+}
+
+[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-next]::before {
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
+}
+
+[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-prev]:hover:not(:disabled)::before,
+[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-next]:hover:not(:disabled)::before {
+  background-color: var(--tl-accent);
+}
+
+[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-prev]:focus-visible,
+[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-next]:focus-visible {
+  outline: 2px solid var(--tl-accent);
+  outline-offset: 2px;
+}
+
+/* A strip that fits has nothing to scroll to and no reason to show a control
+   for it. `display: none` rather than a fade, so the buttons leave the tab
+   order too — a disabled-looking button a keyboard user can still reach, on a
+   strip with no overflow, is noise. When the strip DOES overflow, the button
+   for the exhausted direction stays in place and goes disabled, so the row
+   does not reflow under the pointer as you scroll. */
+[data-timelinr][data-timelinr-variant='tabs']
+  [data-timelinr-dates]:not(.is-overflow-start):not(.is-overflow-end)
+  :is(button[data-timelinr-dates-prev], button[data-timelinr-dates-next]) {
+  display: none;
+}
+
+[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-prev]:disabled,
+[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-next]:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+[data-timelinr][data-timelinr-variant='tabs'] [data-timelinr-dates] a {
+  display: block;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--tl-border);
+  border-radius: 999px;
+  color: var(--tl-muted);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--tl-speed), background var(--tl-speed), border-color var(--tl-speed);
+}
+
+[data-timelinr][data-timelinr-variant='tabs'] [data-timelinr-dates] a:hover {
+  color: var(--tl-accent);
+  border-color: var(--tl-accent);
+}
+
+[data-timelinr][data-timelinr-variant='tabs'] [data-timelinr-dates] a.is-selected {
+  background: var(--tl-accent);
+  border-color: var(--tl-accent);
+  color: var(--tl-bg);
+}
+
+/* The gap is 1rem, not the 0.4rem the dots' visual spacing alone would want,
+   because it is half of what sets the pointer targets apart: a 0.5rem dot
+   plus a 1rem gap is a 1.5rem (24px) pitch, exactly the width of the hit
+   overlays below, so adjacent targets meet without overlapping. */
+[data-timelinr][data-timelinr-variant='tabs'] [data-timelinr-dots] {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dot] {
+  --tl-dot-active-scale: 1.35;
+
+  position: relative;
+  width: 0.5rem;
+  height: 0.5rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--tl-border);
+  cursor: pointer;
+  transition: background var(--tl-speed), transform var(--tl-speed);
+}
+
+/* WCAG 2.5.8 Target Size (Minimum): the painted dot stays 0.5rem, and a
+   transparent overlay extends the pointer target to 1.5rem (24px) square
+   without changing anything visible. */
+[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dot]::before {
+  content: '';
+  position: absolute;
+  inset: -0.5rem;
+  transition: transform var(--tl-speed);
+}
+
+[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dot]:hover {
+  background: var(--tl-muted);
+}
+
+[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dot].is-selected {
+  background: var(--tl-accent);
+  transform: scale(var(--tl-dot-active-scale));
+}
+
+/* the active dot's scale applies to its overlay too, which would blow the
+   target out to 32px and overlap both neighbours' — undo it there, from the
+   same variable, so every target stays exactly 24px */
+[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dot].is-selected::before {
+  transform: scale(calc(1 / var(--tl-dot-active-scale)));
+}
+
+[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dot]:focus-visible {
+  outline: 2px solid var(--tl-accent);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   6. variant: list  (shared by `list` and `list-alternating`)
+   ============================================================ */
+
+/* ONE ROW PER ENTRY: [ year | medallion ] [ title + body ], with every entry
+   on screen at once, the non-active ones greyed and the active one washed in
+   --tl-accent.
+
+   The interleaving problem, and why the library grew --tl-i.
+   The DOM contract keeps dates and slides in two separate, index-parallel
+   lists (a `ul` of date links, then a `ul` of slide items). To draw date i
+   and slide i on the SAME visual row they have to interleave, and CSS alone
+   cannot do that: the root carries only --tl-index and --tl-count, neither of
+   which tells a given `li` which row it belongs to. So `#dateLinks` and
+   `#items` each get a --tl-i custom property in the constructor, both lists'
+   wrappers are flattened into the root grid with `display: contents`, and
+   each side places itself with `grid-row: calc(var(--tl-i) + 1)`. Both halves
+   of row i therefore land in row i by construction — there is no DOM order,
+   source order or auto-placement rule holding them together that a later edit
+   could quietly break.
+
+   The root, not the dates column, is the scroll container. It has to be:
+   `display: contents` means [data-timelinr-dates] generates no box at all, so
+   it can be neither a scroll container nor an overflow clip. --tl-visible x
+   --tl-row moves onto the root and windows the whole grid, which is the same
+   thing it always meant. `scrollIntoView({ block: 'nearest' })` — the call
+   #apply() already makes on the active link — still positions it, since it
+   walks to the nearest scrollable ancestor.
+
+   --tl-visible is still an APPROXIMATION of how many entries are visible: it
+   sets the viewport to a multiple of the nominal row height --tl-row. Real
+   rows follow their text (more so now that the body copy is in the row), so
+   the visible count varies with content. Don't document it as exact.
+
+   Row anatomy: the four track values below are the ONLY place any horizontal
+   position in this variant is declared. --tl-rail-x (centre of the medallion
+   column) and --tl-list-rail-col (width of the whole left half) are both
+   calc()ed from them, so the rail line, the disc, the glyph and the grid
+   column all move together. A responsive override therefore changes track
+   values only — never a hand-measured left/right. */
+
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) {
+  --tl-list-pad: 0.75rem;
+  --tl-list-year-col: 3.5rem;
+  --tl-list-icon-col: 2.5rem;
+  --tl-list-col-gap: 0.75rem;
+  /* centre of the medallion column, from the row's left edge */
+  --tl-rail-x: calc(
+    var(--tl-list-pad) + var(--tl-list-year-col) + var(--tl-list-col-gap) +
+      var(--tl-list-icon-col) / 2
+  );
+  /* the left half's full width: both paddings, both tracks, the gap */
+  --tl-list-rail-col: calc(
+    var(--tl-list-pad) * 2 + var(--tl-list-year-col) + var(--tl-list-col-gap) +
+      var(--tl-list-icon-col)
+  );
+
+  display: grid;
+  grid-template-columns: var(--tl-list-rail-col) minmax(0, 1fr);
+  /* zero on purpose: a row's wash spans both halves and the rail line runs
+     from one row into the next, so neither seam may open up */
+  gap: 0;
+  max-height: calc(var(--tl-visible, 5) * var(--tl-row, 5rem));
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+}
+
+/* Flatten both lists so their leaf items become items of the root grid.
+   `display: contents` also drops [data-timelinr-issues]'s shared-base
+   `overflow: hidden` and its `> ul`'s flex row, which is what we want here —
+   list has no sliding panel to clip. */
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates],
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] > ul,
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] > ul > li,
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues],
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] > ul {
+  display: contents;
+}
+
+/* a counter or dots block would otherwise be auto-placed into whatever cell
+   the scan finds first; span it so it can only land on a fresh row below */
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-counter],
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dots] {
+  grid-column: 1 / -1;
+}
+
+/* ---------- left half: year + medallion + rail ---------- */
+
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a {
+  grid-column: 1;
+  grid-row: calc(var(--tl-i, 0) + 1);
+
+  display: grid;
+  grid-template-columns: var(--tl-list-year-col) var(--tl-list-icon-col);
+  align-items: center;
+  gap: var(--tl-list-col-gap);
+  min-height: var(--tl-row, 5rem);
+  padding: 1rem var(--tl-list-pad);
+  box-sizing: border-box;
+  border-radius: var(--tl-radius) 0 0 var(--tl-radius);
+  color: var(--tl-muted);
+  font-weight: 600;
+  text-decoration: none;
+
+  /* The rail line is a background layer on the link, not a pseudo-element on
+     the <li> as it used to be — the <li> is `display: contents` now and paints
+     nothing. This is the better home anyway: the line and the medallion are
+     positioned inside the SAME box, both off --tl-rail-x, so the class of bug
+     this variant shipped (a hand-tuned `left` drifting away from a
+     grid-placed disc) is no longer expressible. background-origin: border-box
+     makes the offset measure from the row's left edge, matching --tl-rail-x's
+     definition; the -1px centres the line's own 2px width on it. The link
+     stretches to the full row height, so consecutive rows' lines butt
+     together into one continuous rail. */
+  background-image: linear-gradient(var(--tl-border), var(--tl-border));
+  background-repeat: no-repeat;
+  background-origin: border-box;
+  background-position: calc(var(--tl-rail-x) - 1px) 0;
+  background-size: 2px 100%;
+
+  /* background-COLOR, never the `background` shorthand: the shorthand would
+     drag background-image/position/size into the transition and flicker the
+     rail on every navigation */
+  transition: background-color var(--tl-speed), color var(--tl-speed);
+}
+
+/* the rail starts at the first medallion and stops at the last, so the two
+   end rows carry half a line each — and a single-entry timeline, which
+   matches both selectors, carries none */
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] li:first-child a {
+  background-position: calc(var(--tl-rail-x) - 1px) 100%;
+  background-size: 2px 50%;
+}
+
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] li:last-child a {
+  background-position: calc(var(--tl-rail-x) - 1px) 0;
+  background-size: 2px 50%;
+}
+
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating'])
+  [data-timelinr-dates]
+  li:first-child:last-child
+  a {
+  background-image: none;
+}
+
+/* icon medallion — masks whatever url() the consumer put in --tl-icon, so
+   it tints from the theme exactly like the prev/next chevrons do.
+
+   Disc and glyph are BOTH grid items pinned to the same cell (row 1,
+   column 2) and both centred in it, so they share a centre by construction
+   and no offset can drift. Giving each a definite row AND column also fixes
+   the auto-placement of the year: grid places definitely-positioned items
+   first, leaving column 1 free for the link's anonymous text item. Without
+   the definite row the cursor would still be sitting past column 2 when the
+   text is placed, pushing the year out of column 1 and leaving it blank
+   — which is exactly what this variant used to render. */
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a::before {
+  content: '';
+  grid-row: 1;
+  grid-column: 2;
+  justify-self: center;
+  align-self: center;
+  z-index: 1;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background-color: var(--tl-border);
+  transition: background-color var(--tl-speed);
+}
+
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a::after {
+  content: '';
+  grid-row: 1;
+  grid-column: 2;
+  justify-self: center;
+  align-self: center;
+  z-index: 2;
+  width: 1.1rem;
+  height: 1.1rem;
+  background-color: var(--tl-bg);
+  mask-image: var(--tl-icon);
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  -webkit-mask-image: var(--tl-icon);
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+}
+
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a:hover {
+  color: var(--tl-accent);
+}
+
+/* ---------- right half: title + body, on the same row ---------- */
+
+/* This is the half the shared base styles for a SLIDING panel — one slide
+   filling the viewport, inactive ones faded to opacity 0.25 — and almost none
+   of that survives here. Every entry is on screen permanently now, so the
+   dimming has to leave text readable: `list` swaps the base's opacity for
+   --tl-muted, the exact treatment the date link on the same row already uses,
+   which keeps the two halves matching and keeps non-active copy at a colour
+   already contrast-checked against --tl-bg (opacity 0.25 was not). */
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] li {
+  grid-column: 2;
+  grid-row: calc(var(--tl-i, 0) + 1);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  gap: 0.25rem;
+  padding: 1rem var(--tl-list-pad);
+  box-sizing: border-box;
+  border-radius: 0 var(--tl-radius) var(--tl-radius) 0;
+  opacity: 1;
+  color: var(--tl-muted);
+  transition: background-color var(--tl-speed), color var(--tl-speed);
+}
+
+/* the whole row selects its entry (the library attaches a click handler to
+   [data-timelinr-issues] under these variants), so it has to look clickable —
+   the keyboard route is unchanged: the date link on the same row is a real
+   link, and arrow keys still navigate. Keyed off [role="listitem"] rather
+   than the variant attribute alone: that role is library-owned state, set
+   unconditionally in the constructor and stripped unconditionally by
+   destroy() (see the ARIA invariant), so the pointer cursor disappears with
+   it. li:not(.is-selected) alone is wrong here — destroy() also removes
+   is-selected from every row, so a rule anchored only to its absence would
+   have every row (including the one that was active) advertise a click
+   handler that destroy() just detached. */
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] li[role='listitem']:not(.is-selected) {
+  cursor: pointer;
+}
+
+/* this variant shows no imagery */
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] img {
+  display: none;
+}
+
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] h3 {
+  grid-column: 1;
+  align-self: auto;
+  font-size: 1rem;
+}
+
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] p {
+  grid-column: 1;
+  font-size: 0.9375rem;
+}
+
+/* ---------- the active row ---------- */
+
+/* One wash across both halves, meeting at the column-1/column-2 seam that
+   `gap: 0` keeps closed; each half rounds only its outer corners so the pair
+   reads as a single pill. Both are background-COLOR for the reason given on
+   the link above. */
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a.is-selected {
+  background-color: color-mix(in srgb, var(--tl-accent) 10%, transparent);
+  color: var(--tl-accent);
+}
+
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a.is-selected::before {
+  background-color: var(--tl-accent);
+}
+
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] li.is-selected {
+  background-color: color-mix(in srgb, var(--tl-accent) 10%, transparent);
+  color: var(--tl-fg);
+}
+
+/* ---------- prev / next: STICKY, not absolute ---------- */
+
+/* The shared base positions these `absolute` against [data-timelinr]. That is
+   correct in every other variant and broken here, because in these two the
+   root is also the SCROLL CONTAINER: an absolutely positioned box is laid out
+   against its containing block's padding box and then scrolls with the
+   content, so the arrows rode the list out of the window (measured: a
+   button's top went 303.3 -> -296.7 across scrollTop 0 -> 600). Sticky is the
+   fix rather than a different anchor, because there is no other anchor to
+   use — `display: contents` on both list wrappers is what forces the scroll
+   container onto the root in the first place, and the library adds no DOM.
+
+   Sticky needs two things to work here, and both are easy to get wrong:
+   - The element must be IN FLOW, so it becomes a grid item of the root grid.
+     Its grid area is then its sticky containing block, and it can only float
+     within that area — so an auto-placed button (which would land in a fresh
+     implicit row *below* every entry) would be pinned to a strip of nothing.
+     `grid-row: 1 / span var(--tl-count, 1)` gives it an area covering the
+     whole list, off the count the library already publishes on the root.
+     Section 7 restates the span, because it puts two rows on every entry.
+   - `inset: auto` first. The base sets `left`/`right` and `top: 50%`; on a
+     sticky box those are constraints, not offsets, and `overflow-y: auto`
+     with a `visible` overflow-x computes overflow-x to `auto` as well, so the
+     root is a horizontal scrollport too and a stray `left` would stick
+     sideways. Clear all four, then set only the one edge each button wants.
+
+   The circular chip (border + --tl-bg fill, as in `rail`) is not decoration:
+   these variants reserve no gutter, so the arrows float over the entries and
+   need an opaque backing to stay legible. z-index 3 clears the medallion's
+   disc (1) and glyph (2), which are grid items in the same stacking
+   context. */
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) button[data-timelinr-prev],
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) button[data-timelinr-next] {
+  position: sticky;
+  inset: auto;
+  grid-column: 1 / -1;
+  grid-row: 1 / span var(--tl-count, 1);
+  justify-self: end;
+  z-index: 3;
+  width: 2rem;
+  height: 2rem;
+  margin-inline-end: 0.5rem;
+  border: 1px solid var(--tl-border);
+  border-radius: 50%;
+  background: var(--tl-bg);
+  transform: none;
+}
+
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) button[data-timelinr-prev] {
+  align-self: start;
+  top: 0.5rem;
+}
+
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) button[data-timelinr-next] {
+  align-self: end;
+  bottom: 0.5rem;
+}
+
+/* ============================================================
+   7. variant: list-alternating
+   ============================================================ */
+
+/* `list` with the rail moved to the middle and entries hung alternately off
+   either side of it: left-hand entries right-aligned, right-hand entries
+   left-aligned, each showing its year above its text, with the medallion
+   sitting on the centre rail. Everything else — the interleave, the scroll
+   container, the muted/washed colour model, the medallion itself — is
+   inherited from section 6 and not repeated here.
+
+   Three structural differences, and the reasons:
+
+   1. THREE columns, not two: [ content | rail | content ]. The middle track
+      is --tl-alt-rail-col, and it is the ONLY horizontal measurement this
+      block declares — the medallion is a grid item centred in it and the rail
+      line is a background anchored to the edge of it, so there is no
+      hand-tuned offset that can drift away from the disc (the mistake this
+      variant's sibling shipped once already; see AGENTS.md's alignment
+      lesson).
+
+   2. TWO grid rows per entry, `2i + 1` for the year and `2i + 2` for the
+      title and body, because "year above its text" stacks two elements that
+      the DOM keeps in different subtrees. Both still come from --tl-i, so the
+      pairing is by construction exactly as it is in `list`.
+
+   3. Both halves of an entry span the rail column (1/3 on the left, 2/4 on
+      the right) rather than stopping beside it. That is what makes the rail
+      CONTINUOUS: the line is painted as a background on each half, so a half
+      that did not reach the rail column would leave a gap in it every second
+      row. It also lets one accent wash cover a whole entry.
+
+   Four things have to share one x here — the disc, the glyph, the rail line
+   and the mirrored copy of all three on the other side — so the arithmetic
+   is worth stating once. The trick is that NOTHING inside an entry may sit
+   between the rail track and the box edge that faces it: `padding-inline: 0`
+   and `column-gap: 0` on the year link make the link's own medallion track
+   line up EXACTLY with the root's rail track, so the disc's centre is
+   `rail/2` from the facing edge on both sides. The rail line is anchored the
+   same `rail/2` in from that same edge, in the 4-value background-position
+   syntax that measures from an edge rather than as a percentage. The text is
+   then held off the rail by padding on the far side (padding-right on the
+   left, padding-left on the right) of exactly one rail track, so it stops
+   where the year above it stops. Change --tl-alt-rail-col and all six move
+   together; there is no measured left/right anywhere in this block.
+
+   Alternation is by :nth-child() parity, not --tl-i. --tl-i is a value, and
+   CSS has no selector that branches on a custom property's parity (style
+   container queries match exact values only, so it would take one query per
+   index). The mirror also needs three non-numeric switches — which columns
+   the entry spans, the order of the two tracks inside the year link, and
+   which edge the text and the rail line anchor to — none of which is
+   expressible as arithmetic on --tl-i however the value is written. Parity
+   is safe where an index would not be: AGENTS.md forbids deriving an INDEX
+   from sibling position, but this asks only "same side as my neighbours or
+   the other one", and the markup contract (both `ul`s hold the same number
+   of `li`s in the same order) already guarantees the two sides agree. --tl-i
+   keeps its real job here — which row an entry occupies.
+
+   Wrapped in min-width: 641px on purpose. Two alternating columns of prose
+   are unreadable on a phone, and the fallback below that width is not a
+   special case to maintain: it is `list` itself, which the section above
+   already styles for both variants and which already has its own narrow
+   tuning in section 8. */
+
+@media (min-width: 641px) {
+  [data-timelinr][data-timelinr-variant='list-alternating'] {
+    /* The centre track. Medallion column and rail line both live in it, and
+       every horizontal position in this block is derived from it. 3rem holds
+       the 2rem disc with 0.5rem of air on each side, which is the gap the
+       year and the body text leave against it. */
+    --tl-alt-rail-col: 3rem;
+    /* An entry is TWO rows tall here, so the nominal per-entry height that
+       --tl-visible multiplies has to grow with it, or the window would show
+       half as many entries as it says. Still an approximation, for the same
+       reason it is one in `list`: rows size to their text. */
+    --tl-row: 9rem;
+
+    grid-template-columns: minmax(0, 1fr) var(--tl-alt-rail-col) minmax(0, 1fr);
+  }
+
+  /* the arrows span twice as many rows here — see the sticky block above */
+  [data-timelinr][data-timelinr-variant='list-alternating'] button[data-timelinr-prev],
+  [data-timelinr][data-timelinr-variant='list-alternating'] button[data-timelinr-next] {
+    grid-row: 1 / span calc(var(--tl-count, 1) * 2);
+  }
+
+  /* ---------- placement: which rows, which columns ---------- */
+
+  /* The year row of entry i. `padding-inline: 0` and `column-gap: 0` are the
+     load-bearing pair: they make the link's own medallion track coincide with
+     the root's rail track, which is what puts the disc on the rail. The block
+     padding stays SYMMETRIC (1rem from `list`) for a second reason — the disc
+     is centred in the content box, so an asymmetric pair would move the disc
+     off the row's 50% mark and the half-height rail stub on the first and
+     last rows would no longer start at a dot. */
+  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] a {
+    grid-row: calc(var(--tl-i, 0) * 2 + 1);
+    grid-template-columns: minmax(0, 1fr) var(--tl-alt-rail-col);
+    column-gap: 0;
+    min-height: 0;
+    padding-inline: 0;
+    border-radius: var(--tl-radius) var(--tl-radius) 0 0;
+    text-align: right;
+
+    /* This link is what #apply() scrolls into view, and in this variant alone
+       it does so with `block: 'start'` (see VARIANT_SCROLL_BLOCK), which lands
+       the entry's top edge exactly on the scrollport's. The prev button sticks
+       at `top: 0.5rem` in the same scrollport, so without a matching margin
+       the year would arrive flush under it with nothing between them. Same
+       0.5rem on both, from the same intent. */
+    scroll-margin-block-start: 0.5rem;
+  }
+
+  /* the text row, directly under its year — no top padding, so the two read
+     as one entry and the wash across them has no seam */
+  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-issues] li {
+    grid-row: calc(var(--tl-i, 0) * 2 + 2);
+    padding-block: 0 1.5rem;
+    padding-inline: 0;
+    border-radius: 0 0 var(--tl-radius) var(--tl-radius);
+    text-align: right;
+  }
+
+  /* odd li = entry 0, 2, 4 … = the LEFT side. Spanning 1/3 (content + rail)
+     rather than stopping at the rail is what gives the line a box to paint
+     in on this row. */
+  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(odd) a,
+  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:nth-child(odd) {
+    grid-column: 1 / 3;
+  }
+
+  /* hold the body text off the rail by exactly one rail track, so it ends
+     where the year above it ends */
+  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:nth-child(odd) {
+    padding-right: var(--tl-alt-rail-col);
+  }
+
+  /* even li = the RIGHT side: the rail column plus the far content column,
+     with every horizontal anchor mirrored */
+  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(even) a,
+  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:nth-child(even) {
+    grid-column: 2 / 4;
+    text-align: left;
+  }
+
+  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(even) a {
+    grid-template-columns: var(--tl-alt-rail-col) minmax(0, 1fr);
+  }
+
+  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:nth-child(even) {
+    padding-left: var(--tl-alt-rail-col);
+  }
+
+  /* ---------- the medallion, mirrored ---------- */
+
+  /* still both pseudo-elements pinned to one cell and centred in it, exactly
+     as in `list` — only which cell changes, so disc and glyph cannot drift
+     apart or off the rail */
+  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(even) a::before,
+  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(even) a::after {
+    grid-column: 1;
+  }
+
+  /* ---------- the rail line ---------- */
+
+  /* Same background-image trick as `list`, anchored to the edge that faces
+     the centre: half the rail track in from the entry's right edge on the
+     left-hand side, and from its left edge on the right-hand side. The
+     4-value background-position syntax is what makes that exact — a
+     calc(100% - …) would resolve its percentage against (box - image), not
+     the box. Both halves of an entry carry it, so the line is continuous
+     down the whole column. */
+  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(odd) a,
+  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:nth-child(odd) {
+    background-image: linear-gradient(var(--tl-border), var(--tl-border));
+    background-repeat: no-repeat;
+    background-origin: border-box;
+    background-position: right calc(var(--tl-alt-rail-col) / 2 - 1px) top 0;
+    background-size: 2px 100%;
+  }
+
+  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(even) a,
+  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:nth-child(even) {
+    background-image: linear-gradient(var(--tl-border), var(--tl-border));
+    background-repeat: no-repeat;
+    background-origin: border-box;
+    background-position: left calc(var(--tl-alt-rail-col) / 2 - 1px) top 0;
+    background-size: 2px 100%;
+  }
+
+  /* Dot to dot, as in `list`, but over four boxes instead of two because the
+     ends of the rail are now a year row and a text row of DIFFERENT entries:
+     the first year row keeps only its lower half, the last year row only its
+     upper half, and the last text row — which hangs below the final
+     medallion — carries no line at all. Only position-y and size are
+     restated; the x anchor set by the parity rules above is what keeps each
+     of these on the correct side. */
+  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:first-child a {
+    background-position-y: bottom 0;
+    background-size: 2px 50%;
+  }
+
+  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:last-child a {
+    background-position-y: top 0;
+    background-size: 2px 50%;
+  }
+
+  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:last-child {
+    background-image: none;
+  }
+
+  /* a one-entry timeline matches both end rules and has no rail to draw */
+  [data-timelinr][data-timelinr-variant='list-alternating']
+    [data-timelinr-dates]
+    li:first-child:last-child
+    a {
+    background-image: none;
+  }
+}
+
+/* ============================================================
+   8. responsive
+   ============================================================ */
+
+@media (max-width: 640px) {
+  /* shared: the slide's image-beside-text grid stacks */
+  [data-timelinr] [data-timelinr-issues] li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  [data-timelinr] [data-timelinr-issues] img {
+    grid-row: auto;
+    width: min(100%, var(--tl-img-width, 26rem));
+  }
+
+  [data-timelinr] [data-timelinr-issues] h3,
+  [data-timelinr] [data-timelinr-issues] p {
+    grid-column: 1;
+  }
+
+  /* rail: the 3rem side gutters exist only to clear the absolutely
+     positioned edge arrows. Those go in flow below the slide at this width
+     (see the arrow rule below), so the gutters have nothing left to clear —
+     drop them and give the narrow screen back the ~6rem. */
+  [data-timelinr][data-timelinr-variant='rail'] {
+    padding-inline: 0;
+  }
+
+  /* rail's small-screen fallback is GONE, and deliberately so. It used to
+     replace the grid with a scrolling flex row and delete the progress line,
+     because back then scrolling and the line were mutually exclusive. Now that
+     the wrapper scrolls instead of the ul they are not, and the narrow screen
+     — the width where the strip is most likely to overflow, and so the width
+     where the line matters most for showing where you are in it — gets the
+     same rail every other width gets. Nothing replaces those rules. */
+
+  /* rail: its edge-floating arrows assume a single content row; once the
+     slide stacks (image above text) they'd float over the middle of the
+     image instead of beside it, so fall back to an in-flow pair below the
+     slide — same chevron icon (::before still anchors to the button
+     itself, which stays a positioned element), just not floating. rail is
+     the only variant with edge arrows, so nothing else needs this. */
+  [data-timelinr][data-timelinr-variant='rail'] button[data-timelinr-prev],
+  [data-timelinr][data-timelinr-variant='rail'] button[data-timelinr-next] {
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    transform: none;
+    margin: 0.5rem 0.25rem 0.75rem;
+  }
+
+  /* stack: stacked image+text no longer fits --tl-height on one screen:
+     shrink the image so text has room, and scroll within the slide as a
+     fallback */
+  [data-timelinr][data-timelinr-variant='stack'] [data-timelinr-issues] li {
+    align-content: start;
+    overflow-y: auto;
+  }
+
+  [data-timelinr][data-timelinr-variant='stack'] [data-timelinr-issues] img {
+    width: auto;
+    max-height: 8rem;
+    align-self: start;
+    margin: 0 auto;
+  }
+
+  /* list: fewer rows fit on a small screen; --tl-visible shrinks to match,
+     and the row's tracks tighten. Only the tracks are restated — the
+     medallion is a grid item and the rail line derives from --tl-rail-x, so
+     both follow automatically and there is no offset here to keep in sync.
+     `list-alternating` is in this selector because below 641px it IS `list`:
+     section 7 is gated on min-width and simply does not apply here, so the
+     narrow fallback is the row layout above rather than a second set of
+     small-screen rules to keep in step. */
+  [data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) {
+    --tl-visible: 2;
+    --tl-list-year-col: 2.75rem;
+    --tl-list-icon-col: 2rem;
+    --tl-list-col-gap: 0.5rem;
+    /* The nominal row grows too. In a ~17rem content column the body copy
+       wraps to ~4 lines instead of ~2, so the real row height (~155px for the
+       example entries at 400px, measured) far exceeds the wide-screen 5rem —
+       and a window sized from the stale nominal showed one row plus a sliver
+       where two were promised. Same reasoning as list-alternating's 9rem
+       above: --tl-row must track what a row actually measures, or
+       --tl-visible stops meaning anything. Still an approximation — rows
+       follow their text, and narrower viewports wrap further. */
+    --tl-row: 10rem;
+  }
+}
