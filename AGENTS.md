@@ -484,16 +484,18 @@ chevron-mask technique, documented in the prev/next bullet below.
     variants. `--tl-row` is also raised to `9rem` there, because an entry is
     two rows tall and `--tl-visible` multiplies it.
 
-- **`--tl-icon` goes on the date `<li>`, never on the slide.** The medallion
-  is two pseudo-elements on the date link — `a::before` is the disc, `a::after`
-  is the glyph, masked with `mask-image: var(--tl-icon)` and reusing the
-  chevron technique below so it tints from the theme. Custom properties
-  inherit *down* the tree, not *across* it: the date rail and the issues panel
-  are sibling subtrees, so a `--tl-icon` set on a slide `<li>` could never
-  reach the element that renders it. Per-entry values therefore have to be
-  authored on the date item (see `examples/list/index.html`). No icon set ships
-  with the library and there is no default glyph — deliberate, and what keeps
-  the zero-dependency, single-stylesheet shape intact.
+- **Icons are inline `<svg>`s inside the date `<a>`, never on the slide.**
+  The medallion is the disc pseudo-element `a::before` plus a real `<svg>`
+  child of the date link; the stylesheet pins both to the same grid cell
+  (row 1, column 2 — column 1 on even rows of `list-alternating`) and tints
+  the glyph with `color: var(--tl-bg)`, so any `stroke`/`fill="currentColor"`
+  icon picks up the theme. The svg must be authored inside the date link (see
+  `examples/list/index.html`): it is a grid item OF that link's internal grid,
+  and an element placed in a slide `<li>` could never participate in it — same
+  subtree logic as the old custom-property rule, just structural instead of
+  inheritance-based. An `<a>` without an `<svg>` renders no glyph; there is no
+  default icon and no icon set ships with the library — deliberate, and what
+  keeps the zero-dependency, single-stylesheet shape intact.
 
 - **Prev/next are chevron masks, absolutely positioned, placed per variant.**
   The icon is a data-URI SVG chevron (adapted from
@@ -501,7 +503,8 @@ chevron-mask technique, documented in the prev/next bullet below.
   rather than an embedded `<svg>` or three real elements — `mask-image` lets
   the shape tint via `background-color` (`--tl-muted`, `--tl-accent` on
   hover) like every other themed color here, and needs zero markup change.
-  This is the same technique `--tl-icon` reuses. Four separate data-URIs exist
+  This is the same tinting-by-mask trick the list variants' medallion used
+  before icons became inline SVGs. Four separate data-URIs exist
   (left/right/up/down) and which pair applies is pure CSS: the shared base
   sets left/right, and one rule pair in the `stack` block — whose selectors
   name `stack` plus both list variants — overrides to up/down for the three
@@ -570,9 +573,9 @@ chevron-mask technique, documented in the prev/next bullet below.
   `index.html` files (a small `find`/`sed`, or a throwaway generation script
   you don't commit, is fine for doing that in one pass — just don't leave
   runtime example code depending on it). The two list pages are the exception
-  worth knowing about: their date `<li>`s also carry an inline `--tl-icon`
-  data-URI each, so a bulk edit there has to preserve them, and
-  `list-alternating`'s prose is not the shared set at all.
+  worth knowing about: their date `<a>`s each carry an inline `<svg>` icon
+  (pinned to the disc's grid cell by the stylesheet), so a bulk edit there has
+  to preserve them, and `list-alternating`'s prose is not the shared set at all.
 
 ## Testing conventions
 

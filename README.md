@@ -135,7 +135,7 @@ multiple instances on one page never fight over the same keypress.
 | `rail` | horizontal | A year strip above the slide with a progress line running dot-to-dot; the fill reaches the active dot, and the active year grows and turns `--tl-accent`. Circular arrow buttons at the left and right edges. The strip compresses its columns down to `--tl-date-min` and scrolls beyond that, fading out on whichever side has more; the progress line scrolls with the dots. | `prev` / `next`, restyled as circular edge buttons |
 | `stack` | vertical | Dates run down a clipped, fixed-height column on the left, side by side with the slide on the right. The column scrolls in fixed steps to keep the active year a couple of rows from the top; the active year gets a tinted pill and a filled dot on a continuous rail. Slides slide vertically. | `prev` / `next`, moved top/bottom-centre with up/down chevrons; `counter` |
 | `tabs` | horizontal | Years become pills in a row that scrolls horizontally, the active pill filled in `--tl-accent`. When the row overflows it fades at the side with more and grows a pair of library-created chevron buttons that scroll it. Dot pagination sits below the slide. Slides slide horizontally. | `dots` |
-| `list` | vertical | One row per entry — year, themed icon medallion (see `--tl-icon`), title and body all in line — threaded onto a continuous rail down the left. Every entry is visible at once: non-active rows are greyed to `--tl-muted`, and the active row is washed in `--tl-accent` across its full width. There is no separate slide panel and nothing slides; the list scrolls natively inside a windowed viewport, and clicking a row's text selects it. Images are hidden. | `prev` / `next`, with up/down chevrons, pinned to the top-right and bottom-right of the scroll window |
+| `list` | vertical | One row per entry — year, themed icon medallion (inline `<svg>`, see Icons), title and body all in line — threaded onto a continuous rail down the left. Every entry is visible at once: non-active rows are greyed to `--tl-muted`, and the active row is washed in `--tl-accent` across its full width. There is no separate slide panel and nothing slides; the list scrolls natively inside a windowed viewport, and clicking a row's text selects it. Images are hidden. | `prev` / `next`, with up/down chevrons, pinned to the top-right and bottom-right of the scroll window |
 | `list-alternating` | vertical | `list` with the rail moved to the **middle** and entries hung alternately off either side of it: each entry shows its year (with the medallion on the rail) above its title and body, right-aligned on the left-hand side and left-aligned on the right. Same colours, same interleave, same scrolling and same click-to-select. Below 641px it falls back to the plain `list` row, because two alternating columns of prose don't fit a phone. | same as `list` |
 
 The library wires up every optional part it finds, but the *styling* splits two
@@ -226,23 +226,29 @@ attribute you authored.
 
 #### Icons (`list`, `list-alternating`)
 
-Both list variants draw an icon medallion for each entry, masked from
-`--tl-icon`. Set it on the date `<li>`, not on the slide: custom properties
-inherit down the tree, and the medallion is painted on the date link.
+Both list variants draw an icon medallion for each entry: a disc behind a
+glyph. Drop a real inline `<svg>` into the date `<a>` and the stylesheet
+places it on the disc for you — sized, centred, and above it in stacking
+order.
 
-The value is used as a CSS `mask-image`, so the glyph takes its colour from the
-theme and any single-colour SVG works. Inline it as a data URI with `<`, `>` and
-`#` percent-escaped. A complete entry, using [Lucide](https://lucide.dev)'s
-`music` icon (Lucide is ISC licensed):
+The glyph is tinted with the CSS `color` property, so write your icon against
+`currentColor` — any icon set drawn that way picks up the theme automatically
+(Lucide markup does by default). An `<a>` without an `<svg>` just renders no
+glyph; there is no default icon.
+
+A complete entry, using [Lucide](https://lucide.dev)'s `music` icon (Lucide is
+ISC licensed):
 
 ```html
-<li style="--tl-icon: url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 18V5l12-2v13'/%3E%3Ccircle cx='6' cy='18' r='3'/%3E%3Ccircle cx='18' cy='16' r='3'/%3E%3C/svg%3E&quot;)">
-  <a href="#1950">1950</a>
+<li>
+  <a href="#1950"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+     stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/>
+     <circle cx="18" cy="16" r="3"/></svg>1950</a>
 </li>
 ```
 
-No icon set ships with the library and there is no default glyph, so set
-`--tl-icon` on every date `<li>`. `examples/list/` and
+No icon set ships with the library. `examples/list/` and
 `examples/list-alternating/` have ten worked entries each to copy from.
 
 #### Window size (`list`, `list-alternating`)
@@ -277,7 +283,6 @@ Override custom properties on the root or any ancestor:
 | `--tl-fade` | `2rem` | `rail`, `tabs` — how much of the strip's edge dissolves to show there is more that way |
 | `--tl-row` / `--tl-visible` | `5rem` (`9rem` for `list-alternating`) / `5` | the `list` variants (see above) |
 | `--tl-alt-rail-col` | `3rem` | `list-alternating`'s centre rail track — every horizontal position in that layout derives from it |
-| `--tl-icon` | none | the `list` variants, per date `<li>` (see above) |
 
 `stack`'s slide image uses a fixed `max-height` (`11rem`; `8rem` below 640px)
 rather than an aspect ratio, because its column has a fixed height budget. That
