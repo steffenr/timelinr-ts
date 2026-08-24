@@ -139,6 +139,35 @@ describe('navigation', () => {
     link!.click();
     expect(selectedIndex(root)).toBe(2);
   });
+
+  // the list variants invite consumers to put an inline <svg> icon inside each
+  // date link. The svg must not disturb index resolution (which goes through
+  // #dateLinks, not sibling position) and must contribute nothing to the
+  // textContent-derived surfaces: dot aria-labels and the live region.
+  it('date links containing an inline svg keep working', () => {
+    const root = buildRoot(null, 4, 'list');
+    const dots = document.createElement('div');
+    dots.setAttribute('data-timelinr-dots', '');
+    root.appendChild(dots);
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    root.querySelectorAll('[data-timelinr-dates] a').forEach((a) => a.prepend(svg.cloneNode(true)));
+
+    document.body.appendChild(root);
+    const t = new Timelinr(root);
+
+    const link = root.querySelectorAll('[data-timelinr-dates] a')[2] as HTMLAnchorElement;
+    link.click();
+    expect(t.index).toBe(2);
+    expect(selectedIndex(root)).toBe(2);
+
+    // the svg carries no text, so textContent stays the bare year — that is
+    // what the dot labels and the live region are built from
+    expect(link.textContent).toBe('1903');
+    expect(dots.querySelectorAll('button')[2]!.getAttribute('aria-label')).toBe('1903');
+    expect(root.querySelector('.tl-visually-hidden')?.textContent).toBe('1903');
+  });
 });
 
 describe('events', () => {

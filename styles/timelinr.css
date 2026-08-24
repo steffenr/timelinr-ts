@@ -1100,8 +1100,9 @@
   background-image: none;
 }
 
-/* icon medallion — masks whatever url() the consumer put in --tl-icon, so
-   it tints from the theme exactly like the prev/next chevrons do.
+/* icon medallion — the consumer drops a real inline <svg> into the date <a>
+   and it lands in the same cell as the disc, tinted by `color` so any
+   stroke/fill="currentColor" icon picks up the theme.
 
    Disc and glyph are BOTH grid items pinned to the same cell (row 1,
    column 2) and both centred in it, so they share a centre by construction
@@ -1110,7 +1111,8 @@
    first, leaving column 1 free for the link's anonymous text item. Without
    the definite row the cursor would still be sitting past column 2 when the
    text is placed, pushing the year out of column 1 and leaving it blank
-   — which is exactly what this variant used to render. */
+   — which is exactly what this variant used to render.
+   An <a> without an svg simply renders no glyph — no placeholder needed. */
 [data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a::before {
   content: '';
   grid-row: 1;
@@ -1125,8 +1127,7 @@
   transition: background-color var(--tl-speed);
 }
 
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a::after {
-  content: '';
+[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a > svg {
   grid-row: 1;
   grid-column: 2;
   justify-self: center;
@@ -1134,15 +1135,10 @@
   z-index: 2;
   width: 1.1rem;
   height: 1.1rem;
-  background-color: var(--tl-bg);
-  mask-image: var(--tl-icon);
-  mask-repeat: no-repeat;
-  mask-position: center;
-  mask-size: contain;
-  -webkit-mask-image: var(--tl-icon);
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  -webkit-mask-size: contain;
+  /* the glyph paints in the background colour over the border-coloured disc,
+     exactly as the masked version did; NOT inherited from the link on purpose
+     — the link's own colour flips to --tl-accent when selected/hovered */
+  color: var(--tl-bg);
 }
 
 [data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a:hover {
@@ -1439,11 +1435,11 @@
 
   /* ---------- the medallion, mirrored ---------- */
 
-  /* still both pseudo-elements pinned to one cell and centred in it, exactly
+  /* still both participants pinned to one cell and centred in it, exactly
      as in `list` — only which cell changes, so disc and glyph cannot drift
      apart or off the rail */
   [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(even) a::before,
-  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(even) a::after {
+  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(even) a > svg {
     grid-column: 1;
   }
 
