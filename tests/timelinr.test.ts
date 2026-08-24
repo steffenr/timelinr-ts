@@ -741,44 +741,241 @@ describe('variant resolution', () => {
   });
 });
 
-// happy-dom runs no layout, so nothing here can prove an entry is on screen —
-// only the browser can, and it did (measured: before the fix, entries 3..9 of
-// the list-alternating example landed with 101-169px clipped below the fold).
-// What these tests DO pin is the input that produced that difference: which
-// alignment each variant asks for. That is the part a later edit could quietly
-// revert, and it is checkable without layout.
+// happy-dom runs no layout, so geometry is stubbed: these are tests of the
+// state machine (which boxes may be scrolled, which alignment each variant
+// asks for, animation timing staying in CSS hands) — not of the layout.
 describe('scrolling the active entry into view', () => {
-  function alignmentFor(variant: string): ScrollIntoViewOptions | undefined {
-    const root = buildRoot(null, 4, variant);
-    document.body.appendChild(root);
-    const links = root.querySelectorAll<HTMLElement>('[data-timelinr-dates] a');
-    // after construction on purpose: the constructor's own #apply() scrolls the
-    // starting entry, and spying through it would leave two links called and
-    // make the "exactly one" check below meaningless
-    const t = new Timelinr(root);
-    const spies = [...links].map((a) => vi.spyOn(a, 'scrollIntoView').mockImplementation(() => {}));
-    t.goTo(2);
-    // asserted on the link the navigation selected, not on whichever spy
-    // happens to have been called — a call on any other link is itself a bug
-    expect(spies.filter((s) => s.mock.calls.length > 0).length).toBe(1);
-    return spies[2]!.mock.calls[0]?.[0] as ScrollIntoViewOptions | undefined;
+  type Rect = { top: number; left: number; width: number; height: number };
+
+  function stubRect(el: Element, r: Rect) {
+    vi.spyOn(el, 'getBoundingClientRect').mockReturnValue({
+      x: r.left,
+      y: r.top,
+      left: r.left,
+      top: r.top,
+      width: r.width,
+      height: r.height,
+      right: r.left + r.width,
+      bottom: r.top + r.height,
+      toJSON: () => r,
+    } as DOMRect);
   }
 
-  // An entry here is ONE grid row and the date link fills it, so `nearest`
-  // already reveals the whole entry and moves the least it can to do so.
-  it.each(['rail', 'stack', 'tabs', 'list'] as const)(
-    'aligns %s with block: nearest',
-    (variant) => {
-      expect(alignmentFor(variant)).toMatchObject({ block: 'nearest' });
-    },
-  );
+  // happy-dom resolves INLINE overflow styles into getComputedStyle, so a test
+  // marks its candidate scrollers the same way real CSS would.
+  function makeScroller(el: HTMLElement): HTMLElement {
+    el.style.overflowY = 'auto';
+    return el;
+  }
 
-  // …but here an entry is TWO grid rows and the link is only the first of
-  // them, so `nearest` is satisfied by the year alone and leaves the title and
-  // body clipped. `start` puts the top of the entry at the top of the
-  // scrollport instead, which needs no guess about how tall the text is.
-  it('aligns list-alternating with block: start, because its entry spans two rows', () => {
-    expect(alignmentFor('list-alternating')).toMatchObject({ block: 'start' });
+  function setup(variant: string) {
+    const root = buildRoot(null, 4, variant);
+    document.body.appendChild(root);
+    const t = new Timelinr(root); // constructor's #apply runs BEFORE any spy
+    const links = [...root.querySelectorAll<HTMLElement>('[data-timelinr-dates] a')];
+    const items = [...root.querySelectorAll<HTMLElement>('[data-timelinr-issues] li')];
+    const scrollSpies = [
+      vi.spyOn(HTMLElement.prototype, 'scrollTo').mockImplementation(() => {}),
+      vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => {}),
+    ];
+    return { root, t, links, items, calls: () => scrollSpies[0]!.mock.calls, intoView: scrollSpies[1]! };
+  }
+
+  it('never calls scrollIntoView on anything', () => {
+    const { t, intoView } = setup('list');
+    t.goTo(2);
+    expect(intoView).not.toHaveBeenCalled();
+  });
+
+  it('autoplay never scrolls anything above the component root, even when entries sit far outside', () => {
+    // A typical app frame: the widget sits inside a page-level scroll box.
+    // Geometry is faked so EVERY scroller (wrapper, document) would be a
+    // tempting target; autoplay must stay inside the component's own containers.
+    const { root, t, links, items, calls } = setup('list-alternating');
+    const wrap = document.createElement('div');
+    makeScroller(wrap);
+    root.parentElement!.insertBefore(wrap, root);
+    wrap.appendChild(root);
+    stubRect(wrap, { top: 2000, left: 0, width: 800, height: 600 });
+    stubRect(links[2]!, { top: 4000, left: 10, width: 80, height: 40 });
+    stubRect(items[2]!, { top: 4040, left: 10, width: 200, height: 60 });
+
+    t.play();
+    vi.advanceTimersByTime(6000); // several autoplay ticks
+    expect(calls()).toHaveLength(0);
+  });
+
+  // Clicking the ALREADY-SELECTED entry changes no state, but the user still
+  // asked to SEE it: the view correction must run even though goTo would
+  // otherwise no-op.
+  it('re-selecting the active entry still corrects the view', () => {
+    const { t, links, items, calls } = setup('list');
+    const doc = document.scrollingElement!;
+    const docSpy = vi.spyOn(doc, 'scrollTo').mockImplementation(() => {});
+    Object.defineProperty(doc, 'scrollTop', { value: 473, writable: true, configurable: true });
+    Object.defineProperty(doc, 'scrollHeight', { value: 1200, configurable: true });
+    Object.defineProperty(doc, 'clientHeight', { value: 500, configurable: true });
+    stubRect(links[0]!, { top: -205, left: 10, width: 80, height: 40 });
+    stubRect(items[0]!, { top: -205, left: 95, width: 250, height: 40 });
+
+    t.goTo(0); // already the active index (startAt default) — state no-op
+    expect(t.index).toBe(0);
+    expect(docSpy).toHaveBeenCalledTimes(1);
+    expect(docSpy.mock.calls[0]?.[0]).toMatchObject({ top: 268 });
+    expect(calls()).toHaveLength(0);
+  });
+
+  // The page IS a legitimate target for user actions, but only the document
+  // scroller (never intermediate ancestors) and only the LEAST movement that
+  // fits the entry into the band. This is the measured fixed-header case: a
+  // short viewport with the widget behind the header strands entries at
+  // scrollTop 0, where no internal scrolling can help.
+  it('user navigation moves the page minimally when internal scrolling cannot reveal the entry', () => {
+    const { t, links, items, calls } = setup('list');
+    const doc = document.scrollingElement!;
+    const docSpy = vi.spyOn(doc, 'scrollTo').mockImplementation(() => {});
+    Object.defineProperty(doc, 'scrollTop', { value: 473, writable: true, configurable: true });
+    Object.defineProperty(doc, 'scrollHeight', { value: 1200, configurable: true });
+    Object.defineProperty(doc, 'clientHeight', { value: 500, configurable: true });
+    // widget window sits above/behind the header: entry far above the band
+    stubRect(links[2]!, { top: -205, left: 10, width: 80, height: 40 });
+    stubRect(items[2]!, { top: -205, left: 95, width: 250, height: 40 });
+
+    t.goTo(2);
+    // no scroll-padding declared → band top is 0; dy = -205 - 0 = -205;
+    // scrollTop 473 - 205 = 268, and NOTHING else was scrolled (the doc's own
+    // spy shadows the prototype spy for the doc; the prototype spy staying at
+    // zero proves no OTHER element was scrolled)
+    expect(docSpy).toHaveBeenCalledTimes(1);
+    expect(docSpy.mock.calls[0]?.[0]).toMatchObject({ top: 268 });
+    expect(calls()).toHaveLength(0);
+  });
+
+  // The alignment target under the list variants is the link ∪ issue item —
+  // one entry, two halves — so both rects are stubbed here.
+  it('scrolls only containers inside the component — here the list root', () => {
+    const { root, t, links, items, calls } = setup('list');
+    makeScroller(root);
+    Object.defineProperty(root, 'scrollTop', { value: 0, writable: true, configurable: true });
+    Object.defineProperty(root, 'scrollHeight', { value: 1200, configurable: true });
+    Object.defineProperty(root, 'clientHeight', { value: 300, configurable: true });
+    stubRect(root, { top: 0, left: 0, width: 400, height: 300 });
+    stubRect(links[2]!, { top: 900, left: 10, width: 80, height: 40 });
+    stubRect(items[2]!, { top: 900, left: 95, width: 250, height: 40 });
+
+    t.goTo(2);
+    expect(calls()).toHaveLength(1);
+    expect(calls()[0]![0]).toMatchObject({ top: 640 });
+  });
+
+  // The alignment band is the container's on-screen portion, inset by its
+  // scroll-padding: aligning to an edge hidden behind a fixed header would
+  // park entries under the overlay.
+  it('aligns to the visible band, inset by scroll-padding, not to hidden edges', () => {
+    const { root, t, links, items, calls } = setup('list');
+    makeScroller(root);
+    // widget window straddles the fold: top 30px behind the header, bottom on screen
+    root.style.scrollPaddingTop = '64px';
+    Object.defineProperty(root, 'scrollTop', { value: 100, writable: true, configurable: true });
+    Object.defineProperty(root, 'scrollHeight', { value: 1200, configurable: true });
+    Object.defineProperty(root, 'clientHeight', { value: 400, configurable: true });
+    stubRect(root, { top: -30, left: 0, width: 400, height: 400 });
+    stubRect(links[2]!, { top: -19.5, left: 10, width: 80, height: 40 });
+    stubRect(items[2]!, { top: -19.5, left: 95, width: 250, height: 40 });
+
+    t.goTo(2);
+    expect(calls()).toHaveLength(1);
+    // band top = max(-30, 0) + 64 = 64; entry top -19.5 < 64, so dy = -83.5;
+    // scrollTop 100 - 83.5 = 16.5, rounded up to 17 so no truncated sliver of
+    // the entry's edge stays hidden
+    expect(calls()[0]![0]).toMatchObject({ top: 17 });
+  });
+
+  // An entry TALLER than the scroll window arrives head-first, like native
+  // scrollIntoView('nearest') — pinning its bottom would show only its tail.
+  it('pins the start edge of an entry taller than the scroll window', () => {
+    const { root, t, links, items, calls } = setup('list');
+    makeScroller(root);
+    Object.defineProperty(root, 'scrollTop', { value: 0, writable: true, configurable: true });
+    Object.defineProperty(root, 'scrollHeight', { value: 2400, configurable: true });
+    Object.defineProperty(root, 'clientHeight', { value: 300, configurable: true });
+    stubRect(root, { top: 0, left: 0, width: 400, height: 300 });
+    stubRect(links[2]!, { top: 900, left: 10, width: 80, height: 40 });
+    stubRect(items[2]!, { top: 900, left: 95, width: 250, height: 420 }); // union: 460px tall
+
+    t.goTo(2);
+    expect(calls()).toHaveLength(1);
+    // NOT 1060 (= 900 + 460 - 300), which bottom-flush arithmetic would ask
+    expect(calls()[0]![0]).toMatchObject({ top: 900 });
+  });
+
+  // `nearest` on the two strip variants whose entry is one slide wide: the
+  // link sits right of the strip, so move just enough to centre it.
+  it.each(['rail', 'tabs'] as const)('%s centres the active date horizontally', (variant) => {
+    const { root, t, links, calls } = setup(variant);
+    const strip =
+      variant === 'rail'
+        ? root.querySelector<HTMLElement>('[data-timelinr-dates]')!
+        : root.querySelector<HTMLElement>('[data-timelinr-dates] ul')!;
+    makeScroller(strip);
+    Object.defineProperty(strip, 'scrollLeft', { value: 0, writable: true, configurable: true });
+    Object.defineProperty(strip, 'scrollTop', { value: 0, writable: true, configurable: true });
+    Object.defineProperty(strip, 'scrollWidth', { value: 1000, configurable: true });
+    Object.defineProperty(strip, 'clientWidth', { value: 300, configurable: true });
+    Object.defineProperty(strip, 'scrollHeight', { value: 50, configurable: true });
+    Object.defineProperty(strip, 'clientHeight', { value: 50, configurable: true });
+    stubRect(strip, { top: 0, left: 0, width: 300, height: 50 });
+    // link sits right of the strip: centring asks for dx = 730 - 150 = 580
+    stubRect(links[2]!, { top: -100, left: 700, width: 60, height: 20 });
+
+    t.goTo(2);
+    expect(calls()).toHaveLength(1);
+    expect(calls()[0]![0]).toMatchObject({ left: 580, top: 0 });
+    // no `behavior` anywhere: animation timing defers to CSS scroll-behavior,
+    // which the reduced-motion block forces back to auto
+    for (const [options] of calls()) {
+      expect(options).not.toHaveProperty('behavior');
+    }
+  });
+
+  // `stack` positions its clipped dates column with a CSS translateY — the
+  // column IS a clip (overflow: hidden), not a scroll affordance, and JS
+  // scrolling it would fight the transform. Even with geometry begging for a
+  // scroll, an overflow:hidden ancestor must be left alone.
+  it('stack scrolls nothing: its clip is overflow hidden, not a scroller', () => {
+    const { t, links, calls } = setup('stack');
+    const clip =
+      document.querySelector<HTMLElement>('[data-timelinr-dates]') ??
+      links[2]!.closest<HTMLElement>('div')!;
+    clip.style.overflowY = 'hidden';
+    Object.defineProperty(clip, 'scrollTop', { value: 0, writable: true, configurable: true });
+    Object.defineProperty(clip, 'scrollHeight', { value: 2000, configurable: true });
+    Object.defineProperty(clip, 'clientHeight', { value: 300, configurable: true });
+    stubRect(clip, { top: 0, left: 0, width: 200, height: 300 });
+    stubRect(links[2]!, { top: 1800, left: 10, width: 80, height: 40 });
+
+    t.goTo(2);
+    expect(calls()).toHaveLength(0);
+  });
+
+  // …but list-alternating's entry spans TWO grid rows and the link is only the
+  // first of them, so it asks for start alignment: put the entry's top edge on
+  // the scrollport's top edge, however tall the text below turns out to be.
+  it('aligns list-alternating with block start, because its entry spans two rows', () => {
+    const { root, t, links, items, calls } = setup('list-alternating');
+    makeScroller(root);
+    Object.defineProperty(root, 'scrollTop', { value: 0, writable: true, configurable: true });
+    Object.defineProperty(root, 'scrollHeight', { value: 2400, configurable: true });
+    Object.defineProperty(root, 'clientHeight', { value: 300, configurable: true });
+    stubRect(root, { top: 0, left: 0, width: 400, height: 300 });
+    stubRect(links[2]!, { top: 900, left: 10, width: 80, height: 40 });
+    stubRect(items[2]!, { top: 940, left: 10, width: 250, height: 60 });
+
+    t.goTo(2);
+    expect(calls()).toHaveLength(1);
+    // 900 - 0, unclamped because max scrollTop (2100) allows it — NOT 640,
+    // which is what `nearest`'s bottom-edge arithmetic would have asked for
+    expect(calls()[0]![0]).toMatchObject({ top: 900 });
   });
 });
 

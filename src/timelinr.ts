@@ -21,28 +21,12 @@ const VARIANT_ORIENTATION: Record<Variant, Orientation> = {
 };
 
 /**
- * How the active date link is aligned when `#apply()` scrolls it into view.
- *
- * `nearest` is right for four of the five, and for two different reasons.
- * rail/stack/tabs are not scroll containers at all, so `nearest` correctly
- * does nothing once the link is on screen and never yanks the page around on
- * an autoplay tick. `list` IS a scroll container, but there the link is the
- * whole entry: it spans column 1 of a one-row-per-entry grid and stretches to
- * the row's full height, so scrolling the link into view scrolls the entry
- * into view, and `nearest` moves the minimum needed to get it there.
- *
- * `list-alternating` breaks that equivalence, which is why it needs its own
- * value. There an entry occupies TWO grid rows — `2i+1` carries the year (with
- * `min-height: 0`, so it is one line tall) and `2i+2` carries the title and
- * body — and the link is only the first of them. `nearest` therefore satisfies
- * itself by bringing that one line into view, parking it flush against the
- * bottom edge with the entire text row still clipped below: measured at 720px
- * of window, entries 3..9 landed with their top 656px down and 101-169px of
- * each entry cut off. `start` is the fix rather than a larger `scroll-margin`,
- * because it needs no guess about how tall the text is — the entry begins at
- * the link, so aligning the link to the top of the scrollport shows as much of
- * the entry as can possibly fit, whatever the content does. It is also the
- * correct reading position for a block that runs year -> title -> body.
+ * Alignment request for #scrollDateIntoView, which applies it only to scroll
+ * containers inside the component. `nearest` for all but `list-alternating`:
+ * there an entry spans TWO grid rows (year above title/body) and the link is
+ * only the year, so `nearest` would park that one line flush at the scrollport
+ * bottom with the text clipped below; `start` aligns the whole entry without
+ * guessing how tall the text is.
  */
 const VARIANT_SCROLL_BLOCK: Record<Variant, ScrollLogicalPosition> = {
   rail: 'nearest',
@@ -410,7 +394,7 @@ export class Timelinr {
     }
 
     initialized.add(root);
-    this.#apply(Math.max(0, Math.min(this.count - 1, this.#opts.startAt - 1)));
+    this.#apply(Math.max(0, Math.min(this.count - 1, this.#opts.startAt - 1)), false);
   }
 
   get index(): number {
@@ -422,9 +406,18 @@ export class Timelinr {
   }
 
   goTo(index: number): void {
+    this.#goTo(index, true);
+  }
+
+  #goTo(index: number, userInitiated: boolean): void {
     const clamped = Math.max(0, Math.min(this.count - 1, index));
-    if (clamped === this.#index) return;
-    this.#apply(clamped);
+    if (clamped === this.#index) {
+      // Re-selecting the active entry changes no state, but a user who clicked
+      // it still asked to SEE it: run the view correction, skip state/event.
+      if (userInitiated) this.#scrollDateIntoView(clamped, true);
+      return;
+    }
+    this.#apply(clamped, userInitiated);
     this.#root.dispatchEvent(
       new CustomEvent<{ index: number }>('timelinr:change', {
         detail: { index: clamped },
@@ -564,12 +557,149 @@ export class Timelinr {
     strip.scrollBy?.({ left: direction * strip.clientWidth * 0.8 });
   }
 
+  /**
+   * Brings the active entry into view: internal scroll containers first, each
+   * aligned to its ON-SCREEN band (box ∩ viewport, inset by its computed
+   * scroll-padding) — never a hidden edge, which would park the entry behind
+   * a fixed header. The target is the whole entry (link ∪ item on the list
+   * variants), oversized entries align head-first like native `nearest`.
+   * If that still can't reveal the entry (stranded at a scroll limit), only
+   * USER-initiated navigation moves the page, by the least amount that fits
+   * it into the viewport band inset by the root's scroll-padding; autoplay
+   * and the initial apply never touch the page. Containers run OUTERMOST
+   * FIRST so each is measured and scrolled exactly once. No `behavior` is
+   * passed to scrollTo() — same reason as #scrollStrip.
+   */
+  #scrollDateIntoView(index: number, userInitiated: boolean): void {
+    const link = this.#dateLinks[index];
+    if (!link) return;
+
+    const isUserScrollable = (el: HTMLElement): boolean => {
+      const cs = getComputedStyle(el);
+      return /^(auto|scroll)$/.test(cs.overflowY) || /^(auto|scroll)$/.test(cs.overflowX);
+    };
+
+    // Ancestor chain, outermost → innermost (collected innermost-outward,
+    // root appended, iterated in reverse). Nothing outside the root is consulted.
+    const chain: HTMLElement[] = [];
+    for (let el = link.parentElement; el && el !== this.#root; el = el.parentElement) {
+      if (el instanceof HTMLElement) chain.push(el);
+    }
+    chain.push(this.#root);
+
+    const cs = getComputedStyle(link);
+    const px = (v: string): number => Number.parseFloat(v) || 0;
+    const marginTop = px(cs.scrollMarginTop);
+    const marginBottom = px(cs.scrollMarginBottom);
+    const marginLeft = px(cs.scrollMarginLeft);
+    const marginRight = px(cs.scrollMarginRight);
+    const block = VARIANT_SCROLL_BLOCK[this.#opts.variant];
+
+    // Net movement the loop applies to the link (scrolling an ancestor by N
+    // moves its rect by -N) — the page correction needs the EXPECTED position.
+    let shiftX = 0;
+    let shiftY = 0;
+
+    // Align the WHOLE entry: link ∪ issue item under the list variants.
+    // Carousel items are transform-positioned slides; their rects say
+    // nothing about visibility.
+    let lRect = link.getBoundingClientRect();
+    if (!this.#carousel) {
+      const item = this.#items[index];
+      if (item) {
+        const iRect = item.getBoundingClientRect();
+        lRect = {
+          left: Math.min(lRect.left, iRect.left),
+          right: Math.max(lRect.right, iRect.right),
+          top: Math.min(lRect.top, iRect.top),
+          bottom: Math.max(lRect.bottom, iRect.bottom),
+        } as DOMRect;
+      }
+    }
+
+    for (let i = chain.length - 1; i >= 0; i--) {
+      const c = chain[i]!;
+      if (!isUserScrollable(c)) continue;
+      const cRect = c.getBoundingClientRect();
+      // The alignment band: the container's on-screen portion, inset by its
+      // own scroll-padding.
+      const ccs = getComputedStyle(c);
+      const padTop = px(ccs.scrollPaddingTop);
+      const padBottom = px(ccs.scrollPaddingBottom);
+      const padLeft = px(ccs.scrollPaddingLeft);
+      const padRight = px(ccs.scrollPaddingRight);
+      const vTop = Math.max(cRect.top, 0);
+      const vBottom = Math.min(cRect.bottom, window.innerHeight);
+      const vLeft = Math.max(cRect.left, 0);
+      const vRight = Math.min(cRect.right, window.innerWidth);
+      const onScreen = vBottom > vTop && vRight > vLeft;
+      let portTop = (onScreen ? vTop : cRect.top) + padTop;
+      let portBottom = (onScreen ? vBottom : cRect.bottom) - padBottom;
+      let portLeft = (onScreen ? vLeft : cRect.left) + padLeft;
+      let portRight = (onScreen ? vRight : cRect.right) - padRight;
+      // Paddings can eat a small band entirely; collapse to its midpoint
+      // rather than inverting it.
+      if (portBottom < portTop) portTop = portBottom = (portTop + portBottom) / 2;
+      if (portRight < portLeft) portLeft = portRight = (portLeft + portRight) / 2;
+      const top = lRect.top - marginTop;
+      const bottom = lRect.bottom + marginBottom;
+      const left = lRect.left - marginLeft;
+      const right = lRect.right + marginRight;
+      // `nearest`, with native's oversized rule: a target taller than the
+      // band pins its START edge (bottom-flush would show only its last lines).
+      const dy =
+        block === 'start'
+          ? top - portTop
+          : bottom - top > portBottom - portTop || top < portTop
+            ? top - portTop
+            : bottom > portBottom
+              ? bottom - portBottom
+              : 0;
+      const dx = (left + right) / 2 - (portLeft + portRight) / 2;
+
+      // Clamp to the real scroll range, then round UP: browsers truncate
+      // fractional positions, and rounding down re-opens a sub-pixel sliver
+      // of the entry's edge.
+      const nextTop = Math.ceil(Math.max(0, Math.min(c.scrollHeight - c.clientHeight, c.scrollTop + dy)));
+      const nextLeft = Math.ceil(Math.max(0, Math.min(c.scrollWidth - c.clientWidth, c.scrollLeft + dx)));
+      shiftY += nextTop - c.scrollTop;
+      shiftX += nextLeft - c.scrollLeft;
+      if (nextTop !== c.scrollTop || nextLeft !== c.scrollLeft) {
+        c.scrollTo?.({ top: nextTop, left: nextLeft });
+      }
+    }
+
+    // Last resort, user-initiated only: if internal scrolling couldn't fully
+    // reveal the entry, move the page by the LEAST amount that fits it into
+    // the viewport band inset by the root's scroll-padding (the consumer's
+    // overlay declaration). Autoplay never reaches this.
+    if (!userInitiated) return;
+    const doc = document.scrollingElement;
+    if (!doc) return;
+    const rcs = getComputedStyle(this.#root);
+    let bandTop = px(rcs.scrollPaddingTop);
+    let bandBottom = window.innerHeight - px(rcs.scrollPaddingBottom);
+    if (bandBottom < bandTop) bandTop = bandBottom = (bandTop + bandBottom) / 2;
+    const top = lRect.top - shiftY - marginTop;
+    const bottom = lRect.bottom - shiftY + marginBottom;
+    let dy = 0;
+    if (bottom - top > bandBottom - bandTop || top < bandTop) dy = top - bandTop;
+    else if (bottom > bandBottom) dy = bottom - bandBottom;
+    if (dy === 0) return;
+    const nextTop = Math.ceil(
+      Math.max(0, Math.min(doc.scrollHeight - doc.clientHeight, doc.scrollTop + dy)),
+    );
+    if (nextTop !== doc.scrollTop) {
+      doc.scrollTo?.({ top: nextTop, left: doc.scrollLeft });
+    }
+  }
+
   /** Auto-advance step used by the autoplay timer; wraps around at the ends. */
   #step(): void {
     if (this.#opts.autoPlayDirection === 'forward') {
-      this.goTo((this.#index + 1) % this.count);
+      this.#goTo((this.#index + 1) % this.count, false);
     } else {
-      this.goTo((this.#index - 1 + this.count) % this.count);
+      this.#goTo((this.#index - 1 + this.count) % this.count, false);
     }
   }
 
@@ -585,7 +715,7 @@ export class Timelinr {
     }
   }
 
-  #apply(index: number): void {
+  #apply(index: number, userInitiated = true): void {
     this.#index = index;
     this.#root.style.setProperty('--tl-index', String(index));
     this.#root.style.setProperty('--tl-count', String(this.count));
@@ -614,13 +744,10 @@ export class Timelinr {
       if (i === index) button.setAttribute('aria-current', 'true');
       else button.removeAttribute('aria-current');
     });
-    // keep the selected date in view (no-op where unsupported). The block
-    // alignment is per-variant because "the link" and "the entry" are the same
-    // box in some variants and not in others — see VARIANT_SCROLL_BLOCK.
-    this.#dateLinks[index]?.scrollIntoView?.({
-      inline: 'center',
-      block: VARIANT_SCROLL_BLOCK[this.#opts.variant],
-    });
+    // Keep the selected date in view. Internal containers first, never the
+    // page on an autoplay tick or on load; a user-initiated navigation may
+    // additionally move the page minimally — see #scrollDateIntoView.
+    this.#scrollDateIntoView(index, userInitiated);
     this.#status.textContent = this.#dateLinks[index]?.textContent ?? '';
   }
 }

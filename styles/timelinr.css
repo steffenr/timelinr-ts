@@ -52,6 +52,12 @@
      how much of the strip's edge dissolves to signal there is more that way. */
   --tl-date-min: 5rem;
   --tl-fade: 2rem;
+  /* Overlay space (a fixed header, typically) reserved when an entry is
+     scrolled against a viewport edge. The library never scrolls the page
+     itself; these matter for consumer-side page-level scrolling (deep links,
+     anchor jumps), where every scrolling ancestor honors scroll-margin. */
+  --tl-scroll-margin-top: 0px;
+  --tl-scroll-margin-bottom: 0px;
 
   position: relative;
   color: var(--tl-fg);
@@ -73,6 +79,17 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* Scroll margins on every entry, in both lists. #scrollDateIntoView reads
+   them for its internal scrolling, and every scrolling ancestor honors them,
+   so the same declaration also protects consumer-side page-level scrolling.
+   (list-alternating's block-start margin below is internal: it clears the
+   sticky prev button.) */
+[data-timelinr] [data-timelinr-dates] a,
+[data-timelinr] [data-timelinr-issues] li {
+  scroll-margin-top: var(--tl-scroll-margin-top);
+  scroll-margin-bottom: var(--tl-scroll-margin-bottom);
 }
 
 /* ---------- issues viewport ---------- */
@@ -978,9 +995,9 @@
    `display: contents` means [data-timelinr-dates] generates no box at all, so
    it can be neither a scroll container nor an overflow clip. --tl-visible x
    --tl-row moves onto the root and windows the whole grid, which is the same
-   thing it always meant. `scrollIntoView({ block: 'nearest' })` — the call
-   #apply() already makes on the active link — still positions it, since it
-   walks to the nearest scrollable ancestor.
+   thing it always meant. #apply()'s container-scoped scrolling (see
+   #scrollDateIntoView in src/timelinr.ts) still positions it: the root is the
+   one scrollable ancestor inside the component, and it is included.
 
    --tl-visible is still an APPROXIMATION of how many entries are visible: it
    sets the viewport to a multiple of the nominal row height --tl-row. Real
@@ -1385,7 +1402,8 @@
     text-align: right;
 
     /* This link is what #apply() scrolls into view, and in this variant alone
-       it does so with `block: 'start'` (see VARIANT_SCROLL_BLOCK), which lands
+       it does so aligned to the scrollport's start edge rather than nearest
+       (see VARIANT_SCROLL_BLOCK), which lands
        the entry's top edge exactly on the scrollport's. The prev button sticks
        at `top: 0.5rem` in the same scrollport, so without a matching margin
        the year would arrive flush under it with nothing between them. Same
