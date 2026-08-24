@@ -18,6 +18,7 @@ await build({
     'examples/list/main': at('examples/list/main.ts'),
     'examples/list-alternating/main': at('examples/list-alternating/main.ts'),
     'examples/autoplay/main': at('examples/autoplay/main.ts'),
+    'examples/fixed-header/main': at('examples/fixed-header/main.ts'),
   },
   outdir: root,
   bundle: true,
