@@ -1,6 +1,6 @@
 {
   "name": "timelinr-ts",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Framework-agnostic timeline slider. Modern TypeScript rebuild of jQuery Timelinr.",
   "type": "module",
   "license": "MIT",
