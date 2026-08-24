@@ -678,6 +678,13 @@ it stops being.
   `package.json#types` points at `dist/index.d.ts` so TypeScript consumers
   get autocomplete/type-checking on `import { Timelinr } from 'timelinr'`.
   They are not, and must never become, a copy of the `.ts` source.
+  Separately: Vite's ES-format lib builds deliberately keep whitespace and
+  comments (`minifyWhitespace` is hardcoded false for them), so
+  `vite.config.ts` carries an inline `minifyEsLibOutput()` plugin that runs
+  esbuild over the written chunk in `closeBundle`. Don't remove it as redundant,
+  and don't try to replace it with a `build.minify`/`esbuild` config option —
+  those are overridden for ES lib builds. Bonus of doing it there: esbuild
+  merges Vite's sourcemap, so `dist/timelinr.js.map` still points at `src/*.ts`.
 - `dist/timelinr.css` (minified, via `scripts/build-css.mjs`) is what
   `package.json#exports["./styles/timelinr.css"]` actually resolves to.
   `styles/` is deliberately NOT in `package.json#files` — the published

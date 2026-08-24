@@ -3,7 +3,7 @@
 Framework-agnostic timeline slider. Modern TypeScript rebuild of
 [jQuery Timelinr](https://www.csslab.cl/2011/08/18/jquery-timelinr/).
 
-- Zero dependencies, ~7.6 kB ESM (~2.3 kB gzipped); CSS ships minified too
+- Zero dependencies, ~8.6 kB ESM (~2.8 kB gzipped); CSS ships minified too
 - Five visual variants — `rail`, `stack`, `tabs`, `list`, `list-alternating` — picked by one attribute
 - Plain CSS (custom properties), CSS-transition animations, `prefers-reduced-motion` support
 - Horizontal & vertical orientation, keyboard nav scoped to the widget (ignores focused form fields
@@ -20,11 +20,19 @@ Framework-agnostic timeline slider. Modern TypeScript rebuild of
 npm install timelinr-ts
 ```
 
+Import the stylesheet from the package (the export map resolves it to the
+minified `dist/timelinr.css`):
+
+```html
+<link rel="stylesheet" href="node_modules/timelinr-ts/dist/timelinr.css" />
+```
+
+or however your bundler exposes package imports, e.g.
+`@import "timelinr-ts/styles/timelinr.css";`.
+
 ## Usage
 
 ```html
-<link rel="stylesheet" href="timelinr.css" />
-
 <div data-timelinr>
   <div data-timelinr-dates><ul>
     <li><a href="#1900">1900</a></li>
@@ -283,7 +291,7 @@ to match.
 ```sh
 npm install
 npm run dev             # examples at http://localhost:5173/examples/, live TS transform
-npm test                # vitest (64 tests)
+npm test                # vitest (81 tests)
 npm run typecheck       # tsc --noEmit
 npm run build           # dist/timelinr.js + .css (minified) + .d.ts, and examples/*/main.js
 npm run build:lib       # just the library
