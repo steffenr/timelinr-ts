@@ -197,6 +197,17 @@ files, not the `.ts`/source directly (see Gotchas).
   compute an actual `transform` or `getBoundingClientRect()` value — these
   tests only ever assert `.is-selected`/`aria-*`/index bookkeeping, which
   stays correct even when the visual position is wrong.
+- **Keeping the active entry in view is internal-first, page-last.**
+  `#apply()` → `#scrollDateIntoView()` never calls `scrollIntoView()`; it
+  aligns the WHOLE entry (link ∪ item on the list variants) to each internal
+  container's ON-SCREEN band (box ∩ viewport, inset by that container's
+  computed `scroll-padding-*`), oversized entries head-first like native
+  `nearest`. Only a USER-initiated navigation may then move the PAGE, by the
+  least amount that fits the entry into the viewport band inset by the ROOT's
+  `scroll-padding` — autoplay and the initial `startAt` apply never touch it,
+  and `goTo()` still runs the correction when re-selecting the already-active
+  entry. Tests stub geometry (happy-dom has none); the layout itself is
+  browser-verified only.
 
 ### Per-variant layout
 
@@ -362,10 +373,9 @@ chevron-mask technique, documented in the prev/next bullet below.
     be: `display: contents` means the dates wrapper generates no box at all,
     so it can be neither a scroll container nor an overflow clip. `max-height:
     calc(var(--tl-visible, 5) * var(--tl-row, 5rem)); overflow-y: auto;
-    scroll-behavior: smooth` lives on the root, and the `scrollIntoView({
-    inline: 'center', block: 'nearest' })` call `#apply()` already makes on
-    the active date link still positions it, since it walks to the nearest
-    scrollable ancestor. Native scrolling (not `stack`'s fixed-step
+    scroll-behavior: smooth` lives on the root, and the container-scoped
+    scrolling `#apply()` makes on the active date link still positions it,
+    since the root is among the containers it moves. Native scrolling (not `stack`'s fixed-step
     `translateY`) because entry heights follow their text — measured 87.3px to
     109.8px across the ten example rows against a nominal `--tl-row` of 80px —
     and a fixed step desynchronises further with every navigation, exactly as
@@ -547,18 +557,22 @@ chevron-mask technique, documented in the prev/next bullet below.
 
 ### Examples
 
-- **There are six example pages: one per variant plus `autoplay`** —
-  `examples/{rail,stack,tabs,list,list-alternating,autoplay}/`, indexed by
-  `examples/index.html`. (Pre-2.0 the set was horizontal/vertical/autoplay;
-  those two directories no longer exist.) `autoplay` deliberately reuses the
-  `rail` variant rather than adding a seventh layout — it demonstrates timing,
-  hover pause and the live theme switcher, not a layout. Adding a variant
+- **There are seven example pages: one per variant plus `autoplay` and
+  `fixed-header`** —
+  `examples/{rail,stack,tabs,list,list-alternating,autoplay,fixed-header}/`,
+  indexed by `examples/index.html`. (Pre-2.0 the set was
+  horizontal/vertical/autoplay; those two directories no longer exist.)
+  `autoplay` deliberately reuses the `rail` variant rather than adding a new
+  layout — it demonstrates timing, hover pause and the live theme switcher,
+  not a layout. `fixed-header` reuses `list` under a fixed site
+  header and demonstrates the scrolling contract: entries align to the
+  on-screen band inset by the root's `scroll-padding-top`. Adding a variant
   means adding its example page, its entry in `examples/index.html` *and* its
   entry point in `scripts/build-examples.mjs` — the third is easy to forget
   and fails silently, leaving the page with no compiled `main.js` at all.
 - **Examples use static markup, not JS-generated DOM.** Each
   `examples/*/index.html` hardcodes its own `<ul>` of dates and `<ul>` of
-  slides (the same 10 entries across five of the six pages —
+  slides (the same 10 entries across six of the seven pages —
   `list-alternating` carries its own longer, deliberately uneven set, because
   a layout whose rows size to their text needs content that actually varies);
   each `main.ts` just does `document.getElementById('timeline')` and calls
@@ -569,7 +583,7 @@ chevron-mask technique, documented in the prev/next bullet below.
   be a shared `examples/shared/timeline.ts` with a `buildTimeline()` helper
   that injected this markup via `createElement` calls — it was removed for
   this reason. Don't reintroduce a shared JS DOM-builder for examples; if the
-  10-entry data ever needs to change, edit the `<li>`s in each of those five
+  10-entry data ever needs to change, edit the `<li>`s in each of those six
   `index.html` files (a small `find`/`sed`, or a throwaway generation script
   you don't commit, is fine for doing that in one pass — just don't leave
   runtime example code depending on it). The two list pages are the exception
@@ -624,7 +638,7 @@ not an error, so a check that hits one reads as a passing check:
    `requestAnimationFrame` never ticks there — measured: 0 callbacks in
    300ms. Everything that depends on frames advancing therefore silently
    never runs: CSS `scroll-behavior: smooth` never progresses (so
-   `scrollIntoView()` is a no-op and `scrollTop` stays where it was), and
+   `scrollTo()` is a no-op and `scrollTop` stays where it was), and
    **CSS transitions never leave their start value**, so
    `getComputedStyle(...).backgroundColor` on a just-selected element reports
    `transparent` forever — a wrong answer that looks exactly like a rule that

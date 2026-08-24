@@ -196,6 +196,39 @@ whatever you choose, which is what keeps the progress line landing on the dots.
 Both respect `prefers-reduced-motion`: the buttons defer to the strip's CSS
 `scroll-behavior`, which that media query forces to `auto`.
 
+#### Where the active entry lands
+
+Activating an entry — clicking a date link, clicking a row (list variants),
+prev/next, arrow keys — scrolls the timeline's **own** containers first: the
+dates strip where one exists (`rail`, `tabs`), the root's scroll window on the
+`list` variants. The alignment target is the **whole entry** — under the list
+variants the union of the date link and its issue item — brought into view with
+per-variant alignment (`nearest` everywhere but `list-alternating`, whose
+two-row entries align to the start edge), with the entry's computed
+`scroll-margin` honored, and with an entry taller than the scroll window
+arriving **head-first** (native `nearest` semantics — pinning the tail would
+show only its last lines).
+
+Alignment happens against the container's **on-screen portion**, inset by the
+container's `scroll-padding-*`: a widget whose window straddles the page fold
+or slides under a fixed header has edges you cannot see, and aligning an entry
+to a hidden edge would park it under the overlay. The library cannot know your
+overlay heights, so it honors the standard declaration — a fixed-header site
+sets one `scroll-padding-top` on the root and entries align below the header.
+`examples/fixed-header/` is that exact frame.
+
+When internal scrolling cannot fully reveal the entry — a short viewport with
+part of the widget behind a header can strand entries at the end of the
+internal scroll range, where no internal movement reaches them — a
+**user-initiated** action (clicks, prev/next, arrow keys) moves the **page** by
+the least amount that fits the entry into the viewport band inset by the root's
+`scroll-padding-*`. **Autoplay never touches the page**, and neither does the
+initial `startAt` positioning; only something you did can move it, and only as
+far as your entry needs. If you scroll entries at the page level yourself (deep
+links, anchor jumps), `--tl-scroll-margin-top` / `--tl-scroll-margin-bottom`
+reserve overlay space for those too — `scroll-margin` is honored by every
+scrolling ancestor.
+
 #### Variant and orientation
 
 The two attributes cross-derive, so either one alone is enough markup:
@@ -283,6 +316,7 @@ Override custom properties on the root or any ancestor:
 | `--tl-fade` | `2rem` | `rail`, `tabs` — how much of the strip's edge dissolves to show there is more that way |
 | `--tl-row` / `--tl-visible` | `5rem` (`9rem` for `list-alternating`) / `5` | the `list` variants (see above) |
 | `--tl-alt-rail-col` | `3rem` | `list-alternating`'s centre rail track — every horizontal position in that layout derives from it |
+| `--tl-scroll-margin-top` / `--tl-scroll-margin-bottom` | `0px` | all — overlay space (a fixed site header, typically) reserved when an entry is scrolled against a viewport edge; see "Where the active entry lands" |
 
 `stack`'s slide image uses a fixed `max-height` (`11rem`; `8rem` below 640px)
 rather than an aspect ratio, because its column has a fixed height budget. That
@@ -296,7 +330,7 @@ to match.
 ```sh
 npm install
 npm run dev             # examples at http://localhost:5173/examples/, live TS transform
-npm test                # vitest (81 tests)
+npm test                # vitest (88 tests)
 npm run typecheck       # tsc --noEmit
 npm run build           # dist/timelinr.js + .css (minified) + .d.ts, and examples/*/main.js
 npm run build:lib       # just the library
@@ -307,7 +341,9 @@ Examples live in [`examples/`](examples/), one per variant —
 [rail](examples/rail/), [stack](examples/stack/), [tabs](examples/tabs/),
 [list](examples/list/),
 [list-alternating](examples/list-alternating/) — plus
-[autoplay](examples/autoplay/) (with a live theme switcher). Sample images via
+[autoplay](examples/autoplay/) (with a live theme switcher) and
+[fixed-header](examples/fixed-header/) (a `list` timeline under a fixed site
+header, demonstrating how the active entry stays fully in view). Sample images via
 <https://picsum.photos>. Their HTML references
 compiled, minified `main.js` + `assets/*.min.css` (not raw `.ts`) as a plain
 `<script>` (no `type="module"`), so they work through any static file server —
