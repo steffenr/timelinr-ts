@@ -17,7 +17,7 @@ Framework-agnostic timeline slider. Modern TypeScript rebuild of
 ## Install
 
 ```sh
-npm install @steffenr/timelinr
+npm install timelinr-ts
 ```
 
 ## Usage
@@ -40,7 +40,7 @@ npm install @steffenr/timelinr
 ```
 
 ```ts
-import { Timelinr } from '@steffenr/timelinr';
+import { Timelinr } from 'timelinr-ts';
 
 const t = new Timelinr(document.querySelector('[data-timelinr]')!, {
   variant: 'rail',     // 'rail' | 'stack' | 'tabs' | 'list' | 'list-alternating'; overrides the attribute
@@ -61,7 +61,7 @@ t.destroy();
 Or zero-config:
 
 ```ts
-import { autoInit } from '@steffenr/timelinr';
+import { autoInit } from 'timelinr-ts';
 autoInit(); // initializes every [data-timelinr] on the page
 ```
 

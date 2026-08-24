@@ -2,8 +2,8 @@ name: Release
 
 # Publishes to npm whenever a v* tag is pushed, via npm TRUSTED PUBLISHING
 # (OIDC) — no NPM_TOKEN secret involved. The one-time setup lives on npmjs.com:
-# package @steffenr/timelinr -> Settings -> Trusted Publishers -> GitHub
-# repository steffenr/timelinr, workflow file "release.yml". The id-token
+# package timelinr-ts -> Settings -> Trusted Publishers -> GitHub
+# repository timelinr-ts, workflow file "release.yml". The id-token
 # permission below is what lets npm verify the run's identity; dist/ is built
 # here from the tagged source. prepublishOnly (test + typecheck + build:lib)
 # runs automatically as part of `npm publish`, so the tarball can never ship
