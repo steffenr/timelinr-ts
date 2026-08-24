@@ -5,13 +5,13 @@
   "type": "module",
   "license": "MIT",
   "author": "Steffen Rühlmann (https://github.com/steffenr)",
-  "homepage": "https://github.com/steffenr/timelinr#readme",
+  "homepage": "https://github.com/steffenr/timelinr-ts#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/steffenr/timelinr.git"
+    "url": "git+https://github.com/steffenr/timelinr-ts.git"
   },
   "bugs": {
-    "url": "https://github.com/steffenr/timelinr/issues"
+    "url": "https://github.com/steffenr/timelinr-ts/issues"
   },
   "keywords": [
     "timeline",
