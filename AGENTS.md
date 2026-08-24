@@ -680,7 +680,8 @@ it stops being.
   They are not, and must never become, a copy of the `.ts` source.
 - `dist/timelinr.css` (minified, via `scripts/build-css.mjs`) is what
   `package.json#exports["./styles/timelinr.css"]` actually resolves to.
-  `styles/timelinr.css` stays unminified in the package too (readable, for
-  consumers who want to inspect/override it) but is no longer the resolved
-  export target — if you rename or move either file, update both the export
-  map entry and `scripts/build-css.mjs`'s entry point together.
+  `styles/` is deliberately NOT in `package.json#files` — the published
+  package contains only `dist/` (the unminified source stylesheet stays in
+  the repo for development but does not ship). Don't re-add `styles` to
+  `files`. If you rename or move either CSS file, update both the export map
+  entry and `scripts/build-css.mjs`'s entry point together.

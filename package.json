@@ -33,8 +33,7 @@
     "./styles/timelinr.css": "./dist/timelinr.css"
   },
   "files": [
-    "dist",
-    "styles"
+    "dist"
   ],
   "sideEffects": false,
   "scripts": {
