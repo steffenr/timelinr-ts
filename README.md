@@ -278,25 +278,6 @@ different `--tl-height`, override
 `[data-timelinr-variant="stack"] [data-timelinr-issues] img { max-height: … }`
 to match.
 
-## Migrating from the jQuery Timelinr
-
-This rewrite replaces the original dotted-line styling with the variants above. No markup
-or JavaScript change is required — a timeline with no `data-timelinr-variant`
-now renders as `rail` (horizontal) or `stack` (vertical) — but **the visual
-result differs**. There is no flag to restore the 1.x look; copy the 1.x
-`styles/timelinr.css` into your own project if you need it.
-
-What to check in an existing integration:
-
-- **Prev/next `disabled` is now owned by the library**, which sets it at the
-  first and last item. If you were setting it yourself, delete that code.
-- **Custom CSS targeting `[data-timelinr-dates] a` needs rewriting** against the
-  variant selectors, since each variant styles its date list differently.
-
-`data-timelinr-dots` and `data-timelinr-counter` are new *optional* parts, not
-migrations: they do nothing unless you add the elements, so an existing timeline
-needs no change for them.
-
 ## Development
 
 ```sh
