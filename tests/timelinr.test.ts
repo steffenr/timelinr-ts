@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { Timelinr, autoInit } from '../src/index';
+import { Timelinr } from '../src/timelinr';
 
 function buildRoot(
   orientation: string | null = 'horizontal',
@@ -7,7 +7,6 @@ function buildRoot(
   variant: string | null = null,
 ): HTMLElement {
   const root = document.createElement('div');
-  root.setAttribute('data-timelinr', '');
   if (orientation !== null) root.setAttribute('data-timelinr-orientation', orientation);
   if (variant !== null) root.setAttribute('data-timelinr-variant', variant);
 
@@ -586,38 +585,6 @@ describe('destroy', () => {
     t.destroy();
     expect(links.every((l) => l.style.getPropertyValue('--tl-i') === '')).toBe(true);
     expect(items.every((l) => l.style.getPropertyValue('--tl-i') === '')).toBe(true);
-  });
-});
-
-describe('autoInit', () => {
-  it('initializes every [data-timelinr] root under scope', () => {
-    document.body.append(buildRoot(), buildRoot('vertical'));
-    const instances = autoInit();
-    expect(instances).toHaveLength(2);
-    expect(instances[0]).toBeInstanceOf(Timelinr);
-    expect(instances.every((i) => i.index === 0)).toBe(true);
-  });
-
-  it('skips already-initialized roots', () => {
-    const root = buildRoot();
-    document.body.appendChild(root);
-    const first = autoInit();
-    const second = autoInit();
-    expect(first).toHaveLength(1);
-    expect(second).toHaveLength(0);
-  });
-
-  it('initializes remaining roots when an earlier one is malformed', () => {
-    const broken = document.createElement('div');
-    broken.setAttribute('data-timelinr', '');
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    document.body.append(broken, buildRoot());
-    const instances = autoInit();
-
-    expect(instances).toHaveLength(1);
-    expect(errorSpy).toHaveBeenCalledTimes(1);
-    errorSpy.mockRestore();
   });
 });
 

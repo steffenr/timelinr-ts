@@ -24,6 +24,12 @@ await build({
   outdir: root,
   bundle: true,
   minify: true,
+  // EVERY example imports src/element.ts as a bare side effect
+  // (self-registering <timelinr-slider>), and the package.json
+  // "sideEffects" allowlist names only dist/timelinr.element.js — esbuild
+  // applies that list to this repo too and would strip the import,
+  // silently unregistering the element on every example page.
+  treeShaking: false,
   format: 'iife',
   target: 'es2022',
   logLevel: 'info',

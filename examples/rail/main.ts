@@ -1,8 +1,6 @@
-import { Timelinr } from '../../src';
+import '../../src/element';
 
-const root = document.getElementById('timeline')!;
-const timelinr = new Timelinr(root, { arrowKeys: true });
-
-root.addEventListener('timelinr:change', () => {
-  document.title = `timelinr — rail (${timelinr.index + 1}/${timelinr.count})`;
+const slider = document.querySelector('timelinr-slider')!;
+slider.addEventListener('timelinr:change', () => {
+  document.title = `timelinr — rail (${slider.index + 1}/${slider.count})`;
 });

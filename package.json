@@ -1,6 +1,6 @@
 {
   "name": "timelinr-ts",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Framework-agnostic timeline slider. Modern TypeScript rebuild of jQuery Timelinr.",
   "type": "module",
   "license": "MIT",
@@ -22,24 +22,27 @@
     "zero-dependency",
     "accessible"
   ],
-  "main": "./dist/timelinr.js",
-  "module": "./dist/timelinr.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/timelinr.element.js",
+  "module": "./dist/timelinr.element.js",
+  "types": "./dist/element.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/timelinr.js"
+      "types": "./dist/element.d.ts",
+      "import": "./dist/timelinr.element.js"
     },
     "./styles/timelinr.css": "./dist/timelinr.css"
   },
   "files": [
     "dist"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/timelinr.element.js",
+    "./src/element.ts"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "npm run build:lib && npm run build:examples",
-    "build:lib": "vite build && tsc -p tsconfig.build.json --emitDeclarationOnly && node scripts/build-css.mjs",
+    "build:lib": "tsc -p tsconfig.build.json --emitDeclarationOnly && node scripts/build-element.mjs && node scripts/build-css.mjs",
     "build:examples": "node scripts/build-examples.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
@@ -50,7 +53,7 @@
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
-    "happy-dom": "^18.0.1",
+    "happy-dom": "^20.11.6",
     "typescript": "^5.9.3",
     "vite": "^7.1.11",
     "vitest": "^3.2.4"

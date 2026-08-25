@@ -3,7 +3,8 @@
 Framework-agnostic timeline slider. Modern TypeScript rebuild of
 [jQuery Timelinr](https://www.csslab.cl/2011/08/18/jquery-timelinr/).
 
-- Zero dependencies, ~10.5 kB ESM (~3.6 kB gzipped); CSS ships minified too
+- Zero dependencies, one self-registering `<timelinr-slider>` script: ~13.3 kB ESM
+  (~4.3 kB gzipped); CSS ships minified too (~27.7 kB)
 - Changelog in [CHANGELOG.md](CHANGELOG.md)
 - Five visual variants — `rail`, `stack`, `tabs`, `list`, `list-alternating` — picked by one attribute
 - Plain CSS (custom properties), CSS-transition animations, `prefers-reduced-motion` support
@@ -33,8 +34,18 @@ or however your bundler exposes package imports, e.g.
 
 ## Usage
 
+Load the stylesheet and the self-registering script, then write markup — that
+is the entire integration. No bundler, no import map, no glue JavaScript:
+
 ```html
-<div data-timelinr>
+<script type="module" src="…/dist/timelinr.element.js"></script>
+
+<timelinr-slider
+  data-timelinr-variant="rail"
+  data-timelinr-start-at="3"
+  data-timelinr-arrow-keys
+  data-timelinr-autoplay
+  data-timelinr-autoplay-pause="6000">
   <div data-timelinr-dates><ul>
     <li><a href="#1900">1900</a></li>
     <li><a href="#1930">1930</a></li>
@@ -45,48 +56,63 @@ or however your bundler exposes package imports, e.g.
   </ul></div>
   <button type="button" data-timelinr-prev aria-label="Previous">&lsaquo;</button>
   <button type="button" data-timelinr-next aria-label="Next">&rsaquo;</button>
-</div>
+</timelinr-slider>
 ```
 
-```ts
-import { Timelinr } from 'timelinr-ts';
+Bundled consumers use `import 'timelinr-ts';` (the package entry IS the
+element; it is declared in `sideEffects`, so bundlers will not tree-shake the
+registration away).
 
-const t = new Timelinr(document.querySelector('[data-timelinr]')!, {
-  variant: 'rail',     // 'rail' | 'stack' | 'tabs' | 'list' | 'list-alternating'; overrides the attribute
-  orientation: 'horizontal', // overrides the attribute; defaults from the variant
-  startAt: 1,          // 1-based
-  arrowKeys: true,     // left/right (horizontal) or up/down (vertical)
-  autoPlay: true,
-  autoPlayPause: 4000,
-  autoPlayDirection: 'forward',
-});
+### Lifecycle and behaviour
 
-t.next();
-t.goTo(2);
-t.pause();
-t.destroy();
-```
-
-Or zero-config:
-
-```ts
-import { autoInit } from 'timelinr-ts';
-autoInit(); // initializes every [data-timelinr] on the page
-```
+- The stylesheet keys everything off the `<timelinr-slider>` tag selector, so a connected element is styled immediately.
+- It initialises on insertion and destroys on removal: replacing the
+  element's container (AJAX pagers, route changes) cannot leak an autoplay
+  timer. Moving the element within the document keeps the current slide and
+  playing state.
+- Attribute changes after initialisation rebuild the timeline in place,
+  keeping the current position.
+- The instance methods are re-exposed on the element —
+  `document.querySelector('timelinr-slider')!.next()` is the whole API,
+  alongside `prev()`, `goTo(i)`, `play()`, `pause()` and the `index` / `count`
+  getters. The root fires `timelinr:change` (`event.detail.index`) on every
+  change.
+- An empty `<timelinr-slider>` does not throw: it retries once in a
+  microtask, then warns and stays inert (its `index` reads `0` while inert).
+- Browser-only by design (`customElements` at module scope). Adopting an
+  initialised slider into another document (an iframe) is not supported —
+  move it within the same document instead.
 
 ### Markup contract
 
 | Attribute | Required | Purpose |
 |---|---|---|
-| `data-timelinr` | yes | root element |
+ |
 | `data-timelinr-variant` | no | `rail`, `stack`, `tabs`, `list`, `list-alternating` — see Variants |
 | `data-timelinr-orientation` | no | `vertical` (default: horizontal) |
-| `data-timelinr-theme` | no | theme name (`dark`, `ocean`, `forest`, `sunset`) |
+| `data-timelinr-theme` | no | theme name (`dark`, `ocean`, `forest`, `sunset`) — read by CSS only |
 | `data-timelinr-dates` | yes | container with a `ul > li > a` date list |
 | `data-timelinr-issues` | yes | container with a `ul > li` slide list |
 | `data-timelinr-prev` / `-next` | optional | navigation buttons; the library sets `disabled` at the ends |
 | `data-timelinr-dots` | optional | empty container; the library fills it with one button per item |
 | `data-timelinr-counter` | optional | element the library writes `"3 / 10"` into |
+
+Every behaviour option has an attribute form, so a timeline is fully
+configured from markup:
+
+| Attribute | Value |
+|---|---|
+| `data-timelinr-start-at` | integer, 1-based (clamped to ≥ 1) |
+| `data-timelinr-arrow-keys` | boolean |
+| `data-timelinr-autoplay` | boolean |
+| `data-timelinr-autoplay-direction` | `forward` \| `backward` |
+| `data-timelinr-autoplay-pause` | integer ms (clamped to ≥ 500) |
+
+Booleans are presence-based: bare, `""`, and `"true"` mean true; `"false"`
+means false — both spellings case-insensitive. Numbers must be whole
+integers; trailing garbage (e.g. `3abc`) is invalid, not a leading 3.
+Invalid values fall back to the default with a console warning rather than
+throwing — these values often come from a CMS field.
 
 The date list and the slide list are index-parallel: date `n` selects slide `n`,
 so the two `<ul>`s must have the same number of `<li>`s in the same order. The
@@ -122,10 +148,11 @@ set explicitly there because those variants flatten the wrapping `<ul>` with
 
 Both models also set `aria-current="true"` on the active date link, and a
 visually-hidden `aria-live="polite"` region announces the current date on every
-change. `destroy()` removes all of it. Consider adding your own `aria-label` on
-the root describing what the timeline is (e.g. "Company history"). Arrow-key
-navigation (`arrowKeys: true`) only fires while focus is inside the widget, so
-multiple instances on one page never fight over the same keypress.
+change; removing the element from the DOM removes all of it. Consider adding
+your own `aria-label` on the root describing what the timeline is (e.g.
+"Company history"). Arrow-key navigation (`data-timelinr-arrow-keys`) only
+fires while focus is inside the widget, so multiple instances on one page
+never fight over the same keypress.
 
 ### Variants
 
@@ -246,17 +273,15 @@ The two attributes cross-derive, so either one alone is enough markup:
 | `data-timelinr-variant="list-alternating"` | `list-alternating` | `vertical` |
 | both set | as written | as written |
 
-The `variant` and `orientation` constructor options override the attributes.
 Everything visual comes from the variant — no CSS rule keys off orientation.
 Orientation only decides which arrow keys navigate (left/right vs. up/down),
 so setting both to a mismatched pair is legal and simply changes the keys.
 
-The library writes the resolved variant back onto the root as
-`data-timelinr-variant` (that is what the stylesheet matches). `destroy()`
-restores whatever was there before: it removes the attribute if the library
-created it, and puts your original value back if the library overwrote one —
-including the case where a `variant` option deliberately overrode the
-attribute you authored.
+`data-timelinr-variant` (that is what the stylesheet matches). Removing the
+element restores whatever was there before: the attribute is removed if the
+library created it, and your original value is put back if the library
+overwrote one — including the case where an explicit `data-timelinr-variant`
+deliberately overrode a `data-timelinr-orientation` you authored.
 
 #### Icons (`list`, `list-alternating`)
 
@@ -338,9 +363,9 @@ to match.
 ```sh
 npm install
 npm run dev             # examples at http://localhost:5173/examples/, live TS transform
-npm test                # vitest (88 tests)
+npm test                # vitest
 npm run typecheck       # tsc --noEmit
-npm run build           # dist/timelinr.js + .css (minified) + .d.ts, and examples/*/main.js
+npm run build           # dist/timelinr.element.js + .css (minified) + .d.ts, and examples/*/main.js
 npm run build:lib       # just the library
 npm run build:examples  # just the examples' compiled JS/CSS
 ```
