@@ -4,6 +4,7 @@ Framework-agnostic timeline slider. Modern TypeScript rebuild of
 [jQuery Timelinr](https://www.csslab.cl/2011/08/18/jquery-timelinr/).
 
 - Zero dependencies, ~10.5 kB ESM (~3.6 kB gzipped); CSS ships minified too
+- Changelog in [CHANGELOG.md](CHANGELOG.md)
 - Five visual variants — `rail`, `stack`, `tabs`, `list`, `list-alternating` — picked by one attribute
 - Plain CSS (custom properties), CSS-transition animations, `prefers-reduced-motion` support
 - Horizontal & vertical orientation, keyboard nav scoped to the widget (ignores focused form fields
