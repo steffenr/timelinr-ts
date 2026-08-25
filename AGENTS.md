@@ -372,8 +372,10 @@ chevron-mask technique, documented in the prev/next bullet below.
   - *The ROOT is the scroll container, not `[data-timelinr-dates]`.* It has to
     be: `display: contents` means the dates wrapper generates no box at all,
     so it can be neither a scroll container nor an overflow clip. `max-height:
-    calc(var(--tl-visible, 5) * var(--tl-row, 5rem)); overflow-y: auto;
-    scroll-behavior: smooth` lives on the root, and the container-scoped
+    var(--tl-list-max-height, calc(var(--tl-visible, 5) * var(--tl-row, 5rem)));
+    overflow-y: auto; scroll-behavior: smooth` lives on the root — the token
+    replaces the whole computed window, so `--tl-list-max-height: none`
+    auto-sizes the root (see the `auto-size` example) — and the container-scoped
     scrolling `#apply()` makes on the active date link still positions it,
     since the root is among the containers it moves. Native scrolling (not `stack`'s fixed-step
     `translateY`) because entry heights follow their text — measured 87.3px to
@@ -557,9 +559,9 @@ chevron-mask technique, documented in the prev/next bullet below.
 
 ### Examples
 
-- **There are seven example pages: one per variant plus `autoplay` and
-  `fixed-header`** —
-  `examples/{rail,stack,tabs,list,list-alternating,autoplay,fixed-header}/`,
+- **There are eight example pages: one per variant plus `autoplay`,
+  `fixed-header` and `auto-size`** —
+  `examples/{rail,stack,tabs,list,list-alternating,autoplay,fixed-header,auto-size}/`,
   indexed by `examples/index.html`. (Pre-2.0 the set was
   horizontal/vertical/autoplay; those two directories no longer exist.)
   `autoplay` deliberately reuses the `rail` variant rather than adding a new
@@ -570,9 +572,11 @@ chevron-mask technique, documented in the prev/next bullet below.
   means adding its example page, its entry in `examples/index.html` *and* its
   entry point in `scripts/build-examples.mjs` — the third is easy to forget
   and fails silently, leaving the page with no compiled `main.js` at all.
+  `auto-size` also reuses `list` — it demos the `--tl-list-max-height: none`
+  escape hatch with a checkbox toggling against the default window.
 - **Examples use static markup, not JS-generated DOM.** Each
   `examples/*/index.html` hardcodes its own `<ul>` of dates and `<ul>` of
-  slides (the same 10 entries across six of the seven pages —
+  slides (the same 10 entries across six of the eight pages —
   `list-alternating` carries its own longer, deliberately uneven set, because
   a layout whose rows size to their text needs content that actually varies);
   each `main.ts` just does `document.getElementById('timeline')` and calls
