@@ -5,6 +5,28 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] — 2026-08-25
+
+### Added
+
+- **`<timelinr-slider>` custom element** — a self-registering entry point for hosts with no
+  bundler and no glue JavaScript: render markup, load one `<script type="module">`, done.
+  Initialises on insertion, destroys on removal (no leaked autoplay timers when a container is
+  replaced), keeps the current slide and playing state across DOM moves, and re-exposes the
+  whole API on the DOM node (`next()`, `goTo(i)`, `play()`, `pause()`, `index`, `count`).
+- **Declarative attribute contract** — every behaviour option now has a `data-timelinr-*`
+  attribute form (`data-timelinr-start-at`, `-arrow-keys`, `-autoplay`, `-autoplay-direction`,
+  `-autoplay-pause`), parsed by one shared, clamped, warn-don't-throw parser.
+- **All eight example pages** now use `<timelinr-slider>` markup configured purely by attributes.
+
+### Changed
+
+- The package's single public entry IS the element (`import 'timelinr-ts'`); it ships as one
+  self-contained ESM file and is declared in `sideEffects` so bundlers cannot tree-shake the
+  registration away. The `Timelinr` class remains available as an internal implementation
+  detail; `autoInit()` was removed together with the legacy `<div data-timelinr>` glue path.
+  README bundle-size figures updated to the element bundle (~13.3 kB, ~4.3 kB gzipped).
+
 ## [1.1.0] — 2026-08-25
 
 ### Added
@@ -83,6 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `list`, `list-alternating`), five themes, autoplay with hover pause, keyboard navigation,
   ARIA carousel/list semantics and `prefers-reduced-motion` support.
 
+[1.2.0]: https://github.com/steffenr/timelinr-ts/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/steffenr/timelinr-ts/compare/v1.0.5...v1.1.0
 [1.0.5]: https://github.com/steffenr/timelinr-ts/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/steffenr/timelinr-ts/compare/v1.0.3...v1.0.4

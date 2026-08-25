@@ -7,10 +7,10 @@ class (`src/timelinr.ts`), CSS-driven animation. Usage docs are in
 ## Commands
 
 ```sh
-npm test               # vitest run — tests/timelinr.test.ts
+npm test               # vitest run — tests/timelinr.test.ts + tests/element.test.ts
 npm run typecheck       # tsc --noEmit
 npm run build            # build:lib + build:examples (below)
-npm run build:lib         # vite build (dist/timelinr.js) + tsc declarations + minified dist/timelinr.css
+npm run build:lib         # tsc declarations (dist/*.d.ts) + scripts/build-element.mjs (dist/timelinr.element.js) + minified dist/timelinr.css
 npm run build:examples     # bundles+minifies examples/*/main.js and examples/assets/*.min.css
 npm run dev                # vite dev server, serves examples/ with live TS transform
 ```
@@ -43,13 +43,60 @@ files, not the `.ts`/source directly (see Gotchas).
   through one of these two arrays (e.g. `#dateLinks.indexOf(link)`), not by
   recomputing position from `parentElement.children` — the arrays are the
   single source of truth for index membership.
-- **One shared idempotency guard.** The module-level `initialized` WeakSet
-  (not per-instance state) is what makes `autoInit()` safe to call more than
-  once on the same page. `destroy()` must remove the root from it.
+- **One idempotency guard, and the class is INTERNAL.** `<timelinr-slider>`
+  (`src/element.ts`) is the only public entry point; `autoInit()` is GONE and
+  `src/index.ts` no longer exists — `package.json` maps `.` straight to
+  `dist/timelinr.element.js`. The `Timelinr` class stays in
+  `src/timelinr.ts` as an implementation detail of the element (tests import
+  it directly from there). The `initialized` WeakSet lives in
+  `src/registry.ts`, not as a private of `timelinr.ts`: the constructor marks
+  the root, `destroy()` clears it, and the element's `connectedCallback`
+  consults it, so a redundant connect can never stack a second instance.
+  Don't move it back to a module private.
+- **`optionsFromAttributes()` (`src/options.ts`) is the single parser for
+  the five scalar option attributes** (`start-at`, `arrow-keys`, `autoplay`,
+  `autoplay-direction`, `autoplay-pause`). Precedence in the constructor's
+  merge block: explicit option wins over parsed attribute wins over default
+  (only the element passes options today — its resume/rebuild paths set
+  `startAt`). Deliberately NOT parsed there:
+  `variant`/`orientation`, whose cross-derivation and write-back ownership
+  are `resolveLayout()`'s job and cannot be a plain merge. Clamping
+  (`startAt ≥ 1`, `autoPlayPause ≥ 500`) happens ONLY at this markup
+  boundary; programmatic callers get what they asked for. Invalid values warn
+  and fall back — never throw; these values come from CMS fields.
+- **The element entry point is side-effectful by design.**
+  `src/element.ts` calls `customElements.define()` at module scope (guarded
+  with `customElements.get()` against double registration), which makes it
+  Node-unsafe — the whole package is browser-only now. Two rules keep it
+  alive and correct: `"sideEffects"` in package.json MUST list BOTH
+  `./dist/timelinr.element.js` AND `./src/element.ts` (esbuild applies that
+  list to this repo too: with the src path missing, the examples' bare
+  `import '../../src/element'` gets stripped and the element silently never
+  registers on the example pages), and `scripts/build-element.mjs` must keep
+  bundling the element as ONE self-contained file — hosts load it with a bare
+  `<script type="module">`; Vite multi-entry lib mode was tried here and
+  rejected because Rollup extracts a shared chunk, turning every output into
+  a stub importing it. There is NO Vite lib build anymore;
+  `vite.config.ts` is dev-server-only. Element behaviours worth keeping on
+  any refactor: it does not throw on missing children (retry once in a
+  microtask, then warn); a DOM move caches `{index, playing}` on
+  disconnect and restores on reconnect instead of resetting; an attribute
+  change after init rebuilds but carries the current index across (editing
+  `autoPlayPause` must not snap back to slide 1); attributes firing before
+  `connectedCallback` (upgrade time) hit the `#instance == null` guard; the
+  instance reference is dropped BEFORE destroy() in both teardown paths,
+  because destroy() reverts the library-written variant attribute and that
+  synchronously re-fires attributeChangedCallback. The
+  `playing` getter on the class exists FOR the element's resume logic —
+  without an "is the interval live" signal it could not distinguish a
+  genuinely playing slider from a merely autoplay-configured one.
+
 - **Options merge with `defaults`** (`src/types.ts`). Adding a
-  `TimelinrOptions` field means updating both `defaults` and the constructor's
-  merge block in `src/timelinr.ts`, and keeping `Required<TimelinrOptions>` (the
-  type of `#opts`) satisfied.
+  `TimelinrOptions` field means updating `defaults`, the constructor's merge
+  block in `src/timelinr.ts`, and — if the option is configurable from
+  markup, which every scalar one is — a branch in `optionsFromAttributes()`
+  (`src/options.ts`) plus its attribute table row in README. The type of
+  `#opts` stays `Required<TimelinrOptions>`.
 - **`#opts.autoPlay` is live state, not just an initial flag** — `play()` and
   `pause()` mutate it, and the mouseenter/mouseleave handlers (always attached,
   regardless of the constructor's initial `autoPlay` value) read it to decide
@@ -447,12 +494,11 @@ chevron-mask technique, documented in the prev/next bullet below.
     markup than a variant name. If someone asks for it on `stack` again, this
     is the reasoning; don't generalise it back into an option.
   - *How the shared CSS is factored.* Section 6 of `styles/timelinr.css` is
-    written for BOTH variants via
-    `[data-timelinr]:is([data-timelinr-variant='list'],
-    [data-timelinr-variant='list-alternating'])`, and section 7 overrides only
-    the difference. `:is()` takes the specificity of its most specific
-    argument, so that pair is exactly as specific as the plain
-    `[data-timelinr][data-timelinr-variant='…']` it replaced — nothing else in
+    written for BOTH variants    via `timelinr-slider:is([data-timelinr-variant='list'],
+   [data-timelinr-variant='list-alternating'])`, and section 7 overrides only
+   the difference. `:is()` takes the specificity of its most specific
+   argument, so that pair is exactly as specific as the plain
+   `timelinr-slider[data-timelinr-variant='']` it replaced — nothing else in
     the file shifted. The corollary is the trap: section 7's selectors **tie**
     with section 6's and win only on source order, so section 7 must stay
     below section 6. Don't duplicate section 6 per variant, and don't merge
@@ -537,7 +583,7 @@ chevron-mask technique, documented in the prev/next bullet below.
   scroll container and `absolute` scrolls away with the content (see `list`'s
   bullet). They float over the entries too, and answer it with an opaque
   circular chip rather than a gutter. Placement: elsewhere the buttons are
-  `position: absolute` against `[data-timelinr]` (which is why the root has
+  `position: absolute` against `<timelinr-slider>` (which is why the root has
   `position: relative`); the shared default is the left/right edge pair,
   vertically centred; `rail` overrides it to a `2.25rem` circular pair at
   `top: 1.5rem` sitting in the root's `padding-inline: 3rem` gutters (which
@@ -563,7 +609,15 @@ chevron-mask technique, documented in the prev/next bullet below.
   `fixed-header` and `auto-size`** —
   `examples/{rail,stack,tabs,list,list-alternating,autoplay,fixed-header,auto-size}/`,
   indexed by `examples/index.html`. (Pre-2.0 the set was
-  horizontal/vertical/autoplay; those two directories no longer exist.)
+  horizontal/vertical/autoplay; those two directories no longer exist. A
+  dedicated `element` page existed for one release and was deleted: with the
+  element being the only integration, ALL pages demonstrate it.)
+  Every page's root is `<timelinr-slider>` configured purely by
+  `data-timelinr-*` attributes; every `main.ts` is just
+  `import '../../src/element'` (the self-registering side effect) plus, where
+  a demo needs it, code against the element's public surface (`autoplay`'s
+  theme switcher writes `data-timelinr-theme` on the element; `auto-size`'s
+  checkbox toggles a custom property on it).
   `autoplay` deliberately reuses the `rail` variant rather than adding a new
   layout — it demonstrates timing, hover pause and the live theme switcher,
   not a layout. `fixed-header` reuses `list` under a fixed site
@@ -579,15 +633,14 @@ chevron-mask technique, documented in the prev/next bullet below.
   slides (the same 10 entries across six of the eight pages —
   `list-alternating` carries its own longer, deliberately uneven set, because
   a layout whose rows size to their text needs content that actually varies);
-  each `main.ts` just does `document.getElementById('timeline')` and calls
-  `new Timelinr(...)` — it doesn't build any markup. This is deliberate: it's
-  the reference example of the library's actual DOM contract (see README's
-  Markup contract table), and a consumer copying an example should be
-  copying real usage, not a demo-only DOM-builder abstraction. There used to
-  be a shared `examples/shared/timeline.ts` with a `buildTimeline()` helper
-  that injected this markup via `createElement` calls — it was removed for
-  this reason. Don't reintroduce a shared JS DOM-builder for examples; if the
-  10-entry data ever needs to change, edit the `<li>`s in each of those six
+  each `main.ts` never builds markup — the HTML IS the reference of the
+  library's actual DOM contract (see README's Markup contract table), and a
+  consumer copying an example should be copying real usage, not a demo-only
+  DOM-builder abstraction. There used to be a shared
+  `examples/shared/timeline.ts` with a `buildTimeline()` helper that injected
+  this markup via `createElement` calls — it was removed for this reason.
+  Don't reintroduce a shared JS DOM-builder for examples; if the 10-entry
+  data ever needs to change, edit the `<li>`s in each of those six
   `index.html` files (a small `find`/`sed`, or a throwaway generation script
   you don't commit, is fine for doing that in one pass — just don't leave
   runtime example code depending on it). The two list pages are the exception
@@ -597,9 +650,13 @@ chevron-mask technique, documented in the prev/next bullet below.
 
 ## Testing conventions
 
-- Single file: `tests/timelinr.test.ts`, vitest + happy-dom. It verifies JS
-  state (index, classes, ARIA, events) — it cannot catch a CSS/layout bug
-  like the transform one above; those need an actual browser check.
+- Two files, vitest + happy-dom. `tests/timelinr.test.ts` exercises the
+  `Timelinr` class directly (imported from `../src/timelinr` — it is internal
+  now, tests are allowed to reach it) and verifies JS state (index, classes,
+  ARIA, events); `tests/element.test.ts` covers the attribute parser and the
+  `<timelinr-slider>` lifecycle through the custom element API. Neither can
+  catch a CSS/layout bug like the transform one above; those need an actual
+  browser check.
 - `vi.useFakeTimers()` runs in `beforeEach`; advance autoplay with
   `vi.advanceTimersByTime(...)`, never a real `setTimeout`/sleep.
 - Build fixtures with the local `buildRoot(orientation, count, variant)`
@@ -691,21 +748,15 @@ it stops being.
   `styles/timelinr.css`, run `npm run build:examples` and commit the
   regenerated output** — nothing regenerates it for you, and stale output
   silently drifts from the source.
-- The library build (`vite build`) and the type declarations (`tsc -p
-  tsconfig.build.json --emitDeclarationOnly`) are two separate steps chained
-  in `npm run build:lib` — running only `vite build` will leave stale/missing
-  `.d.ts` files in `dist/`. `dist/*.d.ts` are declaration-only (type
-  signatures, no implementation) — that's the entire reason they're there:
-  `package.json#types` points at `dist/index.d.ts` so TypeScript consumers
-  get autocomplete/type-checking on `import { Timelinr } from 'timelinr'`.
-  They are not, and must never become, a copy of the `.ts` source.
-  Separately: Vite's ES-format lib builds deliberately keep whitespace and
-  comments (`minifyWhitespace` is hardcoded false for them), so
-  `vite.config.ts` carries an inline `minifyEsLibOutput()` plugin that runs
-  esbuild over the written chunk in `closeBundle`. Don't remove it as redundant,
-  and don't try to replace it with a `build.minify`/`esbuild` config option —
-  those are overridden for ES lib builds. Bonus of doing it there: esbuild
-  merges Vite's sourcemap, so `dist/timelinr.js.map` still points at `src/*.ts`.
+- The library build is `tsc -p tsconfig.build.json --emitDeclarationOnly`
+  (declarations) + `scripts/build-element.mjs` (the self-contained element
+  bundle, via esbuild) + `scripts/build-css.mjs`, chained in
+  `npm run build:lib`. There is NO Vite lib build — see the entry-point
+  bullet above for why. `dist/*.d.ts` are declaration-only (type signatures,
+  no implementation) — that's the entire reason they're there:
+  `package.json#types` points at `dist/element.d.ts` so TypeScript consumers
+  get autocomplete/type-checking on `<timelinr-slider>` and the element's
+  methods. They are not, and must never become, a copy of the `.ts` source.
 - `dist/timelinr.css` (minified, via `scripts/build-css.mjs`) is what
   `package.json#exports["./styles/timelinr.css"]` actually resolves to.
   `styles/` is deliberately NOT in `package.json#files` — the published
