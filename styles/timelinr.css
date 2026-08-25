@@ -1032,7 +1032,9 @@
   /* zero on purpose: a row's wash spans both halves and the rail line runs
      from one row into the next, so neither seam may open up */
   gap: 0;
-  max-height: calc(var(--tl-visible, 5) * var(--tl-row, 5rem));
+  /* --tl-list-max-height replaces the whole computed window; `none` (or any
+     length) auto-sizes the root to its content and turns off internal scroll. */
+  max-height: var(--tl-list-max-height, calc(var(--tl-visible, 5) * var(--tl-row, 5rem)));
   overflow-y: auto;
   scroll-behavior: smooth;
   scrollbar-width: thin;

@@ -3,7 +3,7 @@
 Framework-agnostic timeline slider. Modern TypeScript rebuild of
 [jQuery Timelinr](https://www.csslab.cl/2011/08/18/jquery-timelinr/).
 
-- Zero dependencies, ~8.6 kB ESM (~2.8 kB gzipped); CSS ships minified too
+- Zero dependencies, ~10.5 kB ESM (~3.6 kB gzipped); CSS ships minified too
 - Five visual variants — `rail`, `stack`, `tabs`, `list`, `list-alternating` — picked by one attribute
 - Plain CSS (custom properties), CSS-transition animations, `prefers-reduced-motion` support
 - Horizontal & vertical orientation, keyboard nav scoped to the widget (ignores focused form fields
@@ -299,6 +299,13 @@ how many entries actually fit depends on how long your title and body wrap. In
 so a `--tl-visible` of `5` shows about four. Raise `--tl-row` if your entries
 run long and you want the window to keep pace.
 
+Set `--tl-list-max-height: none` to remove the window entirely: the root
+auto-sizes to its content, every entry is permanently visible and nothing
+scrolls internally (the page takes over when entries fall outside the
+viewport). `--tl-list-max-height` replaces the whole computed `max-height`, so
+it also accepts any length.
+
+
 ### Theming
 
 Override custom properties on the root or any ancestor:
@@ -313,7 +320,7 @@ Override custom properties on the root or any ancestor:
 | `--tl-height` | `70vh` | `stack` (its fixed overall height) |
 | `--tl-img-width` | `26rem` | the slide's image column (`rail`, `stack`, `tabs`) |
 | `--tl-date-min` | `5rem` | `rail`, `tabs` — the narrowest a dates column may get before the strip scrolls instead of compressing further |
-| `--tl-fade` | `2rem` | `rail`, `tabs` — how much of the strip's edge dissolves to show there is more that way |
+| `--tl-list-max-height` | `calc(var(--tl-visible) * var(--tl-row))` | the `list` variants — replaces the whole scroll window; `none` auto-sizes to content (see above) |
 | `--tl-row` / `--tl-visible` | `5rem` (`9rem` for `list-alternating`) / `5` | the `list` variants (see above) |
 | `--tl-alt-rail-col` | `3rem` | `list-alternating`'s centre rail track — every horizontal position in that layout derives from it |
 | `--tl-scroll-margin-top` / `--tl-scroll-margin-bottom` | `0px` | all — overlay space (a fixed site header, typically) reserved when an entry is scrolled against a viewport edge; see "Where the active entry lands" |
@@ -343,7 +350,10 @@ Examples live in [`examples/`](examples/), one per variant —
 [list-alternating](examples/list-alternating/) — plus
 [autoplay](examples/autoplay/) (with a live theme switcher) and
 [fixed-header](examples/fixed-header/) (a `list` timeline under a fixed site
-header, demonstrating how the active entry stays fully in view). Sample images via
+header, demonstrating how the active entry stays fully in view) and
+[auto-size](examples/auto-size/) (a `list` timeline with
+`--tl-list-max-height: none` and a toggle against the default window). Sample
+images via
 <https://picsum.photos>. Their HTML references
 compiled, minified `main.js` + `assets/*.min.css` (not raw `.ts`) as a plain
 `<script>` (no `type="module"`), so they work through any static file server —
