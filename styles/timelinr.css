@@ -22,19 +22,27 @@
    — every entry on screen, year + medallion + title + body per entry, --tl-i
    interleaving, the root as scroll container — differing only in where the
    rail runs and which side an entry sits on. So section 6 is written for both
-   via `[data-timelinr]:is([data-timelinr-variant='list'],
+   via `timelinr-slider:is([data-timelinr-variant='list'],
    [data-timelinr-variant='list-alternating'])` and section 7 overrides just
    the difference. `:is()` takes the specificity of its most specific
    argument, so that pair is exactly as specific as the plain
-   `[data-timelinr][data-timelinr-variant='…']` it replaced — which also means
+   `timelinr-slider[data-timelinr-variant='…']` it replaced — which also means
    section 7's selectors TIE with section 6's and win only on source order.
    Section 7 must therefore stay below section 6. */
+
+/* The <timelinr-slider> entry point. Custom elements default to
+   display: inline until their definition upgrades; this keeps the box a
+   block during that window (a deferred type="module" script usually closes
+   it before first paint, but not guaranteed — e.g. slow network, no-JS). */
+timelinr-slider:not(:defined) {
+  display: block;
+}
 
 /* ============================================================
    1. tokens
    ============================================================ */
 
-[data-timelinr] {
+timelinr-slider {
   --tl-bg: #ffffff;
   --tl-fg: #1a1a1a;
   --tl-muted: #6b6b6b;
@@ -59,6 +67,12 @@
   --tl-scroll-margin-top: 0px;
   --tl-scroll-margin-bottom: 0px;
 
+  /* Block, explicitly: the legacy root was always a <div>, but
+     <timelinr-slider> is an unknown element and defaults to inline — an
+     inline position:relative box fragments into line boxes, and every
+     absolutely-positioned child (the edge arrows) then resolves its insets
+     against those fragments instead of one stable box. */
+  display: block;
   position: relative;
   color: var(--tl-fg);
   background: var(--tl-bg);
@@ -86,19 +100,19 @@
    so the same declaration also protects consumer-side page-level scrolling.
    (list-alternating's block-start margin below is internal: it clears the
    sticky prev button.) */
-[data-timelinr] [data-timelinr-dates] a,
-[data-timelinr] [data-timelinr-issues] li {
+timelinr-slider [data-timelinr-dates] a,
+timelinr-slider [data-timelinr-issues] li {
   scroll-margin-top: var(--tl-scroll-margin-top);
   scroll-margin-bottom: var(--tl-scroll-margin-bottom);
 }
 
 /* ---------- issues viewport ---------- */
 
-[data-timelinr] [data-timelinr-issues] {
+timelinr-slider [data-timelinr-issues] {
   overflow: hidden;
 }
 
-[data-timelinr] [data-timelinr-issues] > ul {
+timelinr-slider [data-timelinr-issues] > ul {
   display: flex;
   margin: 0;
   padding: 0;
@@ -112,14 +126,14 @@
    box) and -100% already means "one whole slide". Dividing by count moves
    only 1/count as far — a bug invisible at index 0 or 1 and obvious at
    count - 1. Verify there. */
-[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-issues] > ul,
-[data-timelinr][data-timelinr-variant='tabs'] [data-timelinr-issues] > ul {
+timelinr-slider[data-timelinr-variant='rail'] [data-timelinr-issues] > ul,
+timelinr-slider[data-timelinr-variant='tabs'] [data-timelinr-issues] > ul {
   transform: translateX(calc(var(--tl-index, 0) * -100%));
 }
 
 /* ---------- slide grid ---------- */
 
-[data-timelinr] [data-timelinr-issues] li {
+timelinr-slider [data-timelinr-issues] li {
   flex: 0 0 100%;
   min-width: 0;
   min-height: 0;
@@ -133,18 +147,18 @@
   transition: opacity var(--tl-speed);
 }
 
-[data-timelinr] [data-timelinr-issues] li.is-selected {
+timelinr-slider [data-timelinr-issues] li.is-selected {
   opacity: 1;
 }
 
-[data-timelinr] [data-timelinr-issues] h3 {
+timelinr-slider [data-timelinr-issues] h3 {
   grid-column: 2;
   align-self: end;
   margin: 0;
   font-size: 1.5rem;
 }
 
-[data-timelinr] [data-timelinr-issues] p {
+timelinr-slider [data-timelinr-issues] p {
   grid-column: 2;
   margin: 0;
   max-width: 65ch;
@@ -153,7 +167,7 @@
 
 /* ---------- issue images ---------- */
 
-[data-timelinr] [data-timelinr-issues] img {
+timelinr-slider [data-timelinr-issues] img {
   grid-row: 1 / 3;
   align-self: center;
   display: block;
@@ -171,7 +185,7 @@
     transform var(--tl-speed);
 }
 
-[data-timelinr] [data-timelinr-issues] li.is-selected img {
+timelinr-slider [data-timelinr-issues] li.is-selected img {
   opacity: 1;
   filter: saturate(1);
   transform: scale(1) translateY(0);
@@ -197,16 +211,16 @@
    horizontal measurement in this file (rail's fill is anchored with `left`,
    list's text is held off the rail with `padding-right`). */
 
-[data-timelinr] [data-timelinr-dates] {
+timelinr-slider [data-timelinr-dates] {
   --tl-fade-s: 0px;
   --tl-fade-e: 0px;
 }
 
-[data-timelinr] [data-timelinr-dates].is-overflow-start {
+timelinr-slider [data-timelinr-dates].is-overflow-start {
   --tl-fade-s: var(--tl-fade);
 }
 
-[data-timelinr] [data-timelinr-dates].is-overflow-end {
+timelinr-slider [data-timelinr-dates].is-overflow-end {
   --tl-fade-e: var(--tl-fade);
 }
 
@@ -220,8 +234,8 @@
      with the pills (see section 5).
    With both fades at 0 the gradient is two hard stops at the very edges and
    the mask is a no-op, so the untouched state costs nothing. */
-[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates],
-[data-timelinr][data-timelinr-variant='tabs'] [data-timelinr-dates] > ul {
+timelinr-slider[data-timelinr-variant='rail'] [data-timelinr-dates],
+timelinr-slider[data-timelinr-variant='tabs'] [data-timelinr-dates] > ul {
   mask-image: linear-gradient(
     to right,
     transparent 0,
@@ -240,22 +254,22 @@
 
 /* WebKit's counterpart to `scrollbar-width: none`. Both candidates are named:
    the wrapper scrolls in rail, the `ul` in tabs. */
-[data-timelinr] [data-timelinr-dates]::-webkit-scrollbar,
-[data-timelinr] [data-timelinr-dates] > ul::-webkit-scrollbar {
+timelinr-slider [data-timelinr-dates]::-webkit-scrollbar,
+timelinr-slider [data-timelinr-dates] > ul::-webkit-scrollbar {
   display: none;
 }
 
 /* ---------- focus rings ---------- */
 
-[data-timelinr] [data-timelinr-dates] a:focus-visible,
-[data-timelinr] button[data-timelinr-prev]:focus-visible,
-[data-timelinr] button[data-timelinr-next]:focus-visible {
+timelinr-slider [data-timelinr-dates] a:focus-visible,
+timelinr-slider button[data-timelinr-prev]:focus-visible,
+timelinr-slider button[data-timelinr-next]:focus-visible {
   outline: 2px solid var(--tl-accent);
   outline-offset: 2px;
 }
 
 /* ---------- prev / next buttons ---------- */
-/* Absolutely positioned against [data-timelinr] (which is why the root has
+/* Absolutely positioned against timelinr-slider (which is why the root has
    `position: relative`); each variant overrides the placement it needs.
    The default here is the left/right edge pair, vertically centered.
    The icon is a chevron (Lucide, ISC licensed, https://lucide.dev)
@@ -264,8 +278,8 @@
    own text content (`‹`/`›` in the example markup) as the only DOM content,
    collapsed via font-size:0; aria-label still carries the accessible name. */
 
-[data-timelinr] button[data-timelinr-prev],
-[data-timelinr] button[data-timelinr-next] {
+timelinr-slider button[data-timelinr-prev],
+timelinr-slider button[data-timelinr-next] {
   position: absolute;
   top: 50%;
   width: 1.75rem;
@@ -281,16 +295,16 @@
   transform: translateY(-50%);
 }
 
-[data-timelinr] button[data-timelinr-prev] {
+timelinr-slider button[data-timelinr-prev] {
   left: 0.5rem;
 }
 
-[data-timelinr] button[data-timelinr-next] {
+timelinr-slider button[data-timelinr-next] {
   right: 0.5rem;
 }
 
-[data-timelinr] button[data-timelinr-prev]::before,
-[data-timelinr] button[data-timelinr-next]::before {
+timelinr-slider button[data-timelinr-prev]::before,
+timelinr-slider button[data-timelinr-next]::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -304,30 +318,30 @@
   transition: background-color var(--tl-speed);
 }
 
-[data-timelinr] button[data-timelinr-prev]::before {
+timelinr-slider button[data-timelinr-prev]::before {
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m15 18-6-6 6-6'/%3E%3C/svg%3E");
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m15 18-6-6 6-6'/%3E%3C/svg%3E");
 }
 
-[data-timelinr] button[data-timelinr-next]::before {
+timelinr-slider button[data-timelinr-next]::before {
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
 }
 
-[data-timelinr] button[data-timelinr-prev]:hover:not(:disabled)::before,
-[data-timelinr] button[data-timelinr-next]:hover:not(:disabled)::before {
+timelinr-slider button[data-timelinr-prev]:hover:not(:disabled)::before,
+timelinr-slider button[data-timelinr-next]:hover:not(:disabled)::before {
   background-color: var(--tl-accent);
 }
 
-[data-timelinr] button[data-timelinr-prev]:disabled,
-[data-timelinr] button[data-timelinr-next]:disabled {
+timelinr-slider button[data-timelinr-prev]:disabled,
+timelinr-slider button[data-timelinr-next]:disabled {
   opacity: 0.35;
   cursor: default;
 }
 
 /* ---------- themes ---------- */
 
-[data-timelinr][data-timelinr-theme='dark'] {
+timelinr-slider[data-timelinr-theme='dark'] {
   --tl-bg: #101319;
   --tl-fg: #e8e8e8;
   --tl-muted: #9aa0a8;
@@ -335,7 +349,7 @@
   --tl-border: #2c3138;
 }
 
-[data-timelinr][data-timelinr-theme='ocean'] {
+timelinr-slider[data-timelinr-theme='ocean'] {
   --tl-bg: #dcedf5;
   --tl-fg: #0d2b3d;
   --tl-muted: #3d6479;
@@ -343,7 +357,7 @@
   --tl-border: #a9d3e3;
 }
 
-[data-timelinr][data-timelinr-theme='forest'] {
+timelinr-slider[data-timelinr-theme='forest'] {
   --tl-bg: #dcefe1;
   --tl-fg: #163b26;
   --tl-muted: #3c6049;
@@ -351,7 +365,7 @@
   --tl-border: #a9d9bc;
 }
 
-[data-timelinr][data-timelinr-theme='sunset'] {
+timelinr-slider[data-timelinr-theme='sunset'] {
   --tl-bg: #fbe3d2;
   --tl-fg: #4a2413;
   --tl-muted: #7a5138;
@@ -383,15 +397,15 @@
       scroll-behavior — so silencing it here silences them too, and there is
       no second reduced-motion check to keep in step in the JS. */
 @media (prefers-reduced-motion: reduce) {
-  [data-timelinr] *,
-  [data-timelinr] *::before,
-  [data-timelinr] *::after {
+  timelinr-slider *,
+  timelinr-slider *::before,
+  timelinr-slider *::after {
     transition: none !important;
   }
 
-  [data-timelinr],
-  [data-timelinr] [data-timelinr-dates],
-  [data-timelinr] [data-timelinr-dates] > ul {
+  timelinr-slider,
+  timelinr-slider [data-timelinr-dates],
+  timelinr-slider [data-timelinr-dates] > ul {
     scroll-behavior: auto !important;
   }
 }
@@ -430,7 +444,7 @@
    measure the fill's right edge against the dot's centre, don't eyeball
    it. */
 
-[data-timelinr][data-timelinr-variant='rail'] {
+timelinr-slider[data-timelinr-variant='rail'] {
   padding-inline: 3rem;
 
   /* The SELECTED date's font size, declared once: the is-selected rule and
@@ -445,13 +459,13 @@
 
 /* the scroller — the ul below stays an ordinary block, which is the whole
    point (see the note above) */
-[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] {
+timelinr-slider[data-timelinr-variant='rail'] [data-timelinr-dates] {
   overflow-x: auto;
   scrollbar-width: none;
   scroll-behavior: smooth;
 }
 
-[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] > ul {
+timelinr-slider[data-timelinr-variant='rail'] [data-timelinr-dates] > ul {
   position: relative;
   display: grid;
   grid-auto-flow: column;
@@ -470,8 +484,8 @@
 
 /* track + fill: both sit on the row of dots, behind the links, and both
    start at the first dot's centre — half a column in from the ul's edge */
-[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] > ul::before,
-[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] > ul::after {
+timelinr-slider[data-timelinr-variant='rail'] [data-timelinr-dates] > ul::before,
+timelinr-slider[data-timelinr-variant='rail'] [data-timelinr-dates] > ul::after {
   content: '';
   position: absolute;
   left: calc(50% / var(--tl-count, 1));
@@ -481,7 +495,7 @@
 }
 
 /* first dot's centre to last dot's centre: the full width less one column */
-[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] > ul::before {
+timelinr-slider[data-timelinr-variant='rail'] [data-timelinr-dates] > ul::before {
   width: calc(100% - 100% / var(--tl-count, 1));
   background: var(--tl-border);
 }
@@ -489,7 +503,7 @@
 /* the track width scaled to the active dot. max(1, …) guards a single-item
    timeline against dividing by zero — there the track width is itself 0, so
    the fill collapses to 0 rather than going negative */
-[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] > ul::after {
+timelinr-slider[data-timelinr-variant='rail'] [data-timelinr-dates] > ul::after {
   width: calc(
     (100% - 100% / var(--tl-count, 1)) * var(--tl-index, 0) /
       max(1, var(--tl-count, 1) - 1)
@@ -498,7 +512,7 @@
   transition: width var(--tl-speed);
 }
 
-[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] a {
+timelinr-slider[data-timelinr-variant='rail'] [data-timelinr-dates] a {
   position: relative;
   display: block;
 
@@ -529,7 +543,7 @@
   transition: color var(--tl-speed), font-size var(--tl-speed);
 }
 
-[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] a::after {
+timelinr-slider[data-timelinr-variant='rail'] [data-timelinr-dates] a::after {
   content: '';
   position: absolute;
   left: 50%;
@@ -543,23 +557,23 @@
   transition: background var(--tl-speed), box-shadow var(--tl-speed);
 }
 
-[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] a:hover {
+timelinr-slider[data-timelinr-variant='rail'] [data-timelinr-dates] a:hover {
   color: var(--tl-accent);
 }
 
-[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] a.is-selected {
+timelinr-slider[data-timelinr-variant='rail'] [data-timelinr-dates] a.is-selected {
   color: var(--tl-accent);
   font-size: var(--tl-date-active);
 }
 
-[data-timelinr][data-timelinr-variant='rail'] [data-timelinr-dates] a.is-selected::after {
+timelinr-slider[data-timelinr-variant='rail'] [data-timelinr-dates] a.is-selected::after {
   background: var(--tl-accent);
   box-shadow: 0 0 0 2px var(--tl-accent);
 }
 
 /* circular edge arrows, replacing the bare chevrons */
-[data-timelinr][data-timelinr-variant='rail'] button[data-timelinr-prev],
-[data-timelinr][data-timelinr-variant='rail'] button[data-timelinr-next] {
+timelinr-slider[data-timelinr-variant='rail'] button[data-timelinr-prev],
+timelinr-slider[data-timelinr-variant='rail'] button[data-timelinr-next] {
   top: 1.5rem;
   width: 2.25rem;
   height: 2.25rem;
@@ -569,11 +583,11 @@
   transform: none;
 }
 
-[data-timelinr][data-timelinr-variant='rail'] button[data-timelinr-prev] {
+timelinr-slider[data-timelinr-variant='rail'] button[data-timelinr-prev] {
   left: 0;
 }
 
-[data-timelinr][data-timelinr-variant='rail'] button[data-timelinr-next] {
+timelinr-slider[data-timelinr-variant='rail'] button[data-timelinr-next] {
   right: 0;
 }
 
@@ -588,7 +602,7 @@
    further out of sync with every navigation. `list` deliberately does not
    use this approach, because its rows vary in height (see that block). */
 
-[data-timelinr][data-timelinr-variant='stack'] {
+timelinr-slider[data-timelinr-variant='stack'] {
   --tl-date-step: 3.25rem;
   --tl-stack-dot: 0.6rem;
   --tl-stack-dot-ring: 2px;
@@ -609,7 +623,7 @@
   box-sizing: border-box;
 }
 
-[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-dates] {
+timelinr-slider[data-timelinr-variant='stack'] [data-timelinr-dates] {
   grid-column: 1;
   grid-row: 1;
   position: relative;
@@ -620,7 +634,7 @@
 /* continuous rail line down the column, centred on --tl-stack-rail-inset
    (hence the half-width correction, so the line's centre lands on the rail
    rather than its right edge) */
-[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-dates]::after {
+timelinr-slider[data-timelinr-variant='stack'] [data-timelinr-dates]::after {
   content: '';
   position: absolute;
   top: 0;
@@ -630,13 +644,13 @@
   background: var(--tl-border);
 }
 
-[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-issues] {
+timelinr-slider[data-timelinr-variant='stack'] [data-timelinr-issues] {
   grid-column: 2;
   grid-row: 1;
   min-height: 0;
 }
 
-[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-issues] > ul {
+timelinr-slider[data-timelinr-variant='stack'] [data-timelinr-issues] > ul {
   height: 100%;
   flex-direction: column;
   transform: translateY(calc(var(--tl-index, 0) * -100%));
@@ -644,14 +658,14 @@
 
 /* the image's natural aspect-ratio height can exceed the fixed --tl-height
    budget; cap it and let width follow, so it fits without overflowing */
-[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-issues] img {
+timelinr-slider[data-timelinr-variant='stack'] [data-timelinr-issues] img {
   width: auto;
   max-height: 11rem;
   align-self: start;
   justify-self: start;
 }
 
-[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-dates] > ul {
+timelinr-slider[data-timelinr-variant='stack'] [data-timelinr-dates] > ul {
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -676,11 +690,11 @@
   );
 }
 
-[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-dates] li {
+timelinr-slider[data-timelinr-variant='stack'] [data-timelinr-dates] li {
   flex: 0 0 auto;
 }
 
-[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-dates] a {
+timelinr-slider[data-timelinr-variant='stack'] [data-timelinr-dates] a {
   position: relative;
   display: flex;
   align-items: center;
@@ -696,7 +710,7 @@
    --tl-stack-rail-inset, less half the dot's own width, so the two centres
    coincide. The `a` stretches to the column, so its right edge and the
    clipping column's right edge are the same line. */
-[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-dates] a::after {
+timelinr-slider[data-timelinr-variant='stack'] [data-timelinr-dates] a::after {
   content: '';
   position: absolute;
   right: calc(var(--tl-stack-rail-inset) - var(--tl-stack-dot) / 2);
@@ -711,11 +725,11 @@
 }
 
 /* active year becomes a filled pill */
-[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-dates] a.is-selected {
+timelinr-slider[data-timelinr-variant='stack'] [data-timelinr-dates] a.is-selected {
   color: var(--tl-accent);
 }
 
-[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-dates] a.is-selected::before {
+timelinr-slider[data-timelinr-variant='stack'] [data-timelinr-dates] a.is-selected::before {
   content: '';
   position: absolute;
   inset: 0.5rem 1.5rem 0.5rem 0;
@@ -723,12 +737,12 @@
   background: color-mix(in srgb, var(--tl-accent) 12%, transparent);
 }
 
-[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-dates] a.is-selected::after {
+timelinr-slider[data-timelinr-variant='stack'] [data-timelinr-dates] a.is-selected::after {
   background: var(--tl-accent);
   box-shadow: 0 0 0 var(--tl-stack-dot-ring) var(--tl-accent);
 }
 
-[data-timelinr][data-timelinr-variant='stack'] [data-timelinr-counter] {
+timelinr-slider[data-timelinr-variant='stack'] [data-timelinr-counter] {
   position: absolute;
   right: 0.5rem;
   bottom: 0.25rem;
@@ -739,33 +753,33 @@
 
 /* arrows: top/bottom-centred, pointing up/down — the root's padding-block
    above is what keeps them clear of the dates column and slide content */
-[data-timelinr][data-timelinr-variant='stack'] button[data-timelinr-prev],
-[data-timelinr][data-timelinr-variant='stack'] button[data-timelinr-next] {
+timelinr-slider[data-timelinr-variant='stack'] button[data-timelinr-prev],
+timelinr-slider[data-timelinr-variant='stack'] button[data-timelinr-next] {
   top: auto;
   left: 50%;
   right: auto;
   transform: translateX(-50%);
 }
 
-[data-timelinr][data-timelinr-variant='stack'] button[data-timelinr-prev] {
+timelinr-slider[data-timelinr-variant='stack'] button[data-timelinr-prev] {
   top: 0;
 }
 
-[data-timelinr][data-timelinr-variant='stack'] button[data-timelinr-next] {
+timelinr-slider[data-timelinr-variant='stack'] button[data-timelinr-next] {
   bottom: 0;
 }
 
 /* up/down chevron icons, shared by both variants whose dates column runs
    vertically (stack scrolls it, list lets it grow) — the horizontal
    left/right chevrons from the shared base are wrong for either */
-[data-timelinr][data-timelinr-variant='stack'] button[data-timelinr-prev]::before,
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) button[data-timelinr-prev]::before {
+timelinr-slider[data-timelinr-variant='stack'] button[data-timelinr-prev]::before,
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) button[data-timelinr-prev]::before {
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m18 15-6-6-6 6'/%3E%3C/svg%3E");
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m18 15-6-6-6 6'/%3E%3C/svg%3E");
 }
 
-[data-timelinr][data-timelinr-variant='stack'] button[data-timelinr-next]::before,
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) button[data-timelinr-next]::before {
+timelinr-slider[data-timelinr-variant='stack'] button[data-timelinr-next]::before,
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) button[data-timelinr-next]::before {
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 }
@@ -789,13 +803,13 @@
    active date into view, so a second pair beside them would be two controls
    for one job. */
 
-[data-timelinr][data-timelinr-variant='tabs'] [data-timelinr-dates] {
+timelinr-slider[data-timelinr-variant='tabs'] [data-timelinr-dates] {
   display: flex;
   align-items: center;
   gap: 0.25rem;
 }
 
-[data-timelinr][data-timelinr-variant='tabs'] [data-timelinr-dates] > ul {
+timelinr-slider[data-timelinr-variant='tabs'] [data-timelinr-dates] > ul {
   display: flex;
   gap: 0.5rem;
   margin: 0 0 1rem;
@@ -822,8 +836,8 @@
    would scroll away with the content they are there to reach.
    `margin-bottom` matches the ul's `margin: 0 0 1rem` so the three items in
    the row sit on a common baseline. */
-[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-prev],
-[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-next] {
+timelinr-slider[data-timelinr-variant='tabs'] button[data-timelinr-dates-prev],
+timelinr-slider[data-timelinr-variant='tabs'] button[data-timelinr-dates-next] {
   flex: none;
   position: relative;
   width: 1.5rem;
@@ -836,8 +850,8 @@
 }
 
 /* the chevrons, same Lucide masks and same tinting as the prev/next pair */
-[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-prev]::before,
-[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-next]::before {
+timelinr-slider[data-timelinr-variant='tabs'] button[data-timelinr-dates-prev]::before,
+timelinr-slider[data-timelinr-variant='tabs'] button[data-timelinr-dates-next]::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -851,23 +865,23 @@
   transition: background-color var(--tl-speed);
 }
 
-[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-prev]::before {
+timelinr-slider[data-timelinr-variant='tabs'] button[data-timelinr-dates-prev]::before {
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m15 18-6-6 6-6'/%3E%3C/svg%3E");
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m15 18-6-6 6-6'/%3E%3C/svg%3E");
 }
 
-[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-next]::before {
+timelinr-slider[data-timelinr-variant='tabs'] button[data-timelinr-dates-next]::before {
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
 }
 
-[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-prev]:hover:not(:disabled)::before,
-[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-next]:hover:not(:disabled)::before {
+timelinr-slider[data-timelinr-variant='tabs'] button[data-timelinr-dates-prev]:hover:not(:disabled)::before,
+timelinr-slider[data-timelinr-variant='tabs'] button[data-timelinr-dates-next]:hover:not(:disabled)::before {
   background-color: var(--tl-accent);
 }
 
-[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-prev]:focus-visible,
-[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-next]:focus-visible {
+timelinr-slider[data-timelinr-variant='tabs'] button[data-timelinr-dates-prev]:focus-visible,
+timelinr-slider[data-timelinr-variant='tabs'] button[data-timelinr-dates-next]:focus-visible {
   outline: 2px solid var(--tl-accent);
   outline-offset: 2px;
 }
@@ -878,19 +892,19 @@
    strip with no overflow, is noise. When the strip DOES overflow, the button
    for the exhausted direction stays in place and goes disabled, so the row
    does not reflow under the pointer as you scroll. */
-[data-timelinr][data-timelinr-variant='tabs']
+timelinr-slider[data-timelinr-variant='tabs']
   [data-timelinr-dates]:not(.is-overflow-start):not(.is-overflow-end)
   :is(button[data-timelinr-dates-prev], button[data-timelinr-dates-next]) {
   display: none;
 }
 
-[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-prev]:disabled,
-[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dates-next]:disabled {
+timelinr-slider[data-timelinr-variant='tabs'] button[data-timelinr-dates-prev]:disabled,
+timelinr-slider[data-timelinr-variant='tabs'] button[data-timelinr-dates-next]:disabled {
   opacity: 0.35;
   cursor: default;
 }
 
-[data-timelinr][data-timelinr-variant='tabs'] [data-timelinr-dates] a {
+timelinr-slider[data-timelinr-variant='tabs'] [data-timelinr-dates] a {
   display: block;
   padding: 0.4rem 0.85rem;
   border: 1px solid var(--tl-border);
@@ -903,12 +917,12 @@
   transition: color var(--tl-speed), background var(--tl-speed), border-color var(--tl-speed);
 }
 
-[data-timelinr][data-timelinr-variant='tabs'] [data-timelinr-dates] a:hover {
+timelinr-slider[data-timelinr-variant='tabs'] [data-timelinr-dates] a:hover {
   color: var(--tl-accent);
   border-color: var(--tl-accent);
 }
 
-[data-timelinr][data-timelinr-variant='tabs'] [data-timelinr-dates] a.is-selected {
+timelinr-slider[data-timelinr-variant='tabs'] [data-timelinr-dates] a.is-selected {
   background: var(--tl-accent);
   border-color: var(--tl-accent);
   color: var(--tl-bg);
@@ -918,14 +932,14 @@
    because it is half of what sets the pointer targets apart: a 0.5rem dot
    plus a 1rem gap is a 1.5rem (24px) pitch, exactly the width of the hit
    overlays below, so adjacent targets meet without overlapping. */
-[data-timelinr][data-timelinr-variant='tabs'] [data-timelinr-dots] {
+timelinr-slider[data-timelinr-variant='tabs'] [data-timelinr-dots] {
   display: flex;
   justify-content: center;
   gap: 1rem;
   margin-top: 1rem;
 }
 
-[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dot] {
+timelinr-slider[data-timelinr-variant='tabs'] button[data-timelinr-dot] {
   --tl-dot-active-scale: 1.35;
 
   position: relative;
@@ -942,18 +956,18 @@
 /* WCAG 2.5.8 Target Size (Minimum): the painted dot stays 0.5rem, and a
    transparent overlay extends the pointer target to 1.5rem (24px) square
    without changing anything visible. */
-[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dot]::before {
+timelinr-slider[data-timelinr-variant='tabs'] button[data-timelinr-dot]::before {
   content: '';
   position: absolute;
   inset: -0.5rem;
   transition: transform var(--tl-speed);
 }
 
-[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dot]:hover {
+timelinr-slider[data-timelinr-variant='tabs'] button[data-timelinr-dot]:hover {
   background: var(--tl-muted);
 }
 
-[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dot].is-selected {
+timelinr-slider[data-timelinr-variant='tabs'] button[data-timelinr-dot].is-selected {
   background: var(--tl-accent);
   transform: scale(var(--tl-dot-active-scale));
 }
@@ -961,11 +975,11 @@
 /* the active dot's scale applies to its overlay too, which would blow the
    target out to 32px and overlap both neighbours' — undo it there, from the
    same variable, so every target stays exactly 24px */
-[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dot].is-selected::before {
+timelinr-slider[data-timelinr-variant='tabs'] button[data-timelinr-dot].is-selected::before {
   transform: scale(calc(1 / var(--tl-dot-active-scale)));
 }
 
-[data-timelinr][data-timelinr-variant='tabs'] button[data-timelinr-dot]:focus-visible {
+timelinr-slider[data-timelinr-variant='tabs'] button[data-timelinr-dot]:focus-visible {
   outline: 2px solid var(--tl-accent);
   outline-offset: 2px;
 }
@@ -1011,7 +1025,7 @@
    column all move together. A responsive override therefore changes track
    values only — never a hand-measured left/right. */
 
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) {
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) {
   --tl-list-pad: 0.75rem;
   --tl-list-year-col: 3.5rem;
   --tl-list-icon-col: 2.5rem;
@@ -1044,24 +1058,24 @@
    `display: contents` also drops [data-timelinr-issues]'s shared-base
    `overflow: hidden` and its `> ul`'s flex row, which is what we want here —
    list has no sliding panel to clip. */
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates],
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] > ul,
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] > ul > li,
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues],
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] > ul {
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates],
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] > ul,
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] > ul > li,
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues],
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] > ul {
   display: contents;
 }
 
 /* a counter or dots block would otherwise be auto-placed into whatever cell
    the scan finds first; span it so it can only land on a fresh row below */
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-counter],
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dots] {
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-counter],
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dots] {
   grid-column: 1 / -1;
 }
 
 /* ---------- left half: year + medallion + rail ---------- */
 
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a {
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a {
   grid-column: 1;
   grid-row: calc(var(--tl-i, 0) + 1);
 
@@ -1102,17 +1116,17 @@
 /* the rail starts at the first medallion and stops at the last, so the two
    end rows carry half a line each — and a single-entry timeline, which
    matches both selectors, carries none */
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] li:first-child a {
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] li:first-child a {
   background-position: calc(var(--tl-rail-x) - 1px) 100%;
   background-size: 2px 50%;
 }
 
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] li:last-child a {
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] li:last-child a {
   background-position: calc(var(--tl-rail-x) - 1px) 0;
   background-size: 2px 50%;
 }
 
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating'])
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating'])
   [data-timelinr-dates]
   li:first-child:last-child
   a {
@@ -1132,7 +1146,7 @@
    text is placed, pushing the year out of column 1 and leaving it blank
    — which is exactly what this variant used to render.
    An <a> without an svg simply renders no glyph — no placeholder needed. */
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a::before {
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a::before {
   content: '';
   grid-row: 1;
   grid-column: 2;
@@ -1146,7 +1160,7 @@
   transition: background-color var(--tl-speed);
 }
 
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a > svg {
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a > svg {
   grid-row: 1;
   grid-column: 2;
   justify-self: center;
@@ -1160,7 +1174,7 @@
   color: var(--tl-bg);
 }
 
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a:hover {
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a:hover {
   color: var(--tl-accent);
 }
 
@@ -1173,7 +1187,7 @@
    --tl-muted, the exact treatment the date link on the same row already uses,
    which keeps the two halves matching and keeps non-active copy at a colour
    already contrast-checked against --tl-bg (opacity 0.25 was not). */
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] li {
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] li {
   grid-column: 2;
   grid-row: calc(var(--tl-i, 0) + 1);
 
@@ -1200,22 +1214,22 @@
    is-selected from every row, so a rule anchored only to its absence would
    have every row (including the one that was active) advertise a click
    handler that destroy() just detached. */
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] li[role='listitem']:not(.is-selected) {
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] li[role='listitem']:not(.is-selected) {
   cursor: pointer;
 }
 
 /* this variant shows no imagery */
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] img {
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] img {
   display: none;
 }
 
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] h3 {
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] h3 {
   grid-column: 1;
   align-self: auto;
   font-size: 1rem;
 }
 
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] p {
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] p {
   grid-column: 1;
   font-size: 0.9375rem;
 }
@@ -1226,23 +1240,23 @@
    `gap: 0` keeps closed; each half rounds only its outer corners so the pair
    reads as a single pill. Both are background-COLOR for the reason given on
    the link above. */
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a.is-selected {
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a.is-selected {
   background-color: color-mix(in srgb, var(--tl-accent) 10%, transparent);
   color: var(--tl-accent);
 }
 
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a.is-selected::before {
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-dates] a.is-selected::before {
   background-color: var(--tl-accent);
 }
 
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] li.is-selected {
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) [data-timelinr-issues] li.is-selected {
   background-color: color-mix(in srgb, var(--tl-accent) 10%, transparent);
   color: var(--tl-fg);
 }
 
 /* ---------- prev / next: STICKY, not absolute ---------- */
 
-/* The shared base positions these `absolute` against [data-timelinr]. That is
+/* The shared base positions these `absolute` against timelinr-slider. That is
    correct in every other variant and broken here, because in these two the
    root is also the SCROLL CONTAINER: an absolutely positioned box is laid out
    against its containing block's padding box and then scrolls with the
@@ -1271,8 +1285,8 @@
    need an opaque backing to stay legible. z-index 3 clears the medallion's
    disc (1) and glyph (2), which are grid items in the same stacking
    context. */
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) button[data-timelinr-prev],
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) button[data-timelinr-next] {
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) button[data-timelinr-prev],
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) button[data-timelinr-next] {
   position: sticky;
   inset: auto;
   grid-column: 1 / -1;
@@ -1288,12 +1302,12 @@
   transform: none;
 }
 
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) button[data-timelinr-prev] {
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) button[data-timelinr-prev] {
   align-self: start;
   top: 0.5rem;
 }
 
-[data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) button[data-timelinr-next] {
+timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) button[data-timelinr-next] {
   align-self: end;
   bottom: 0.5rem;
 }
@@ -1364,7 +1378,7 @@
    tuning in section 8. */
 
 @media (min-width: 641px) {
-  [data-timelinr][data-timelinr-variant='list-alternating'] {
+  timelinr-slider[data-timelinr-variant='list-alternating'] {
     /* The centre track. Medallion column and rail line both live in it, and
        every horizontal position in this block is derived from it. 3rem holds
        the 2rem disc with 0.5rem of air on each side, which is the gap the
@@ -1380,8 +1394,8 @@
   }
 
   /* the arrows span twice as many rows here — see the sticky block above */
-  [data-timelinr][data-timelinr-variant='list-alternating'] button[data-timelinr-prev],
-  [data-timelinr][data-timelinr-variant='list-alternating'] button[data-timelinr-next] {
+  timelinr-slider[data-timelinr-variant='list-alternating'] button[data-timelinr-prev],
+  timelinr-slider[data-timelinr-variant='list-alternating'] button[data-timelinr-next] {
     grid-row: 1 / span calc(var(--tl-count, 1) * 2);
   }
 
@@ -1394,7 +1408,7 @@
      is centred in the content box, so an asymmetric pair would move the disc
      off the row's 50% mark and the half-height rail stub on the first and
      last rows would no longer start at a dot. */
-  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] a {
+  timelinr-slider[data-timelinr-variant='list-alternating'] [data-timelinr-dates] a {
     grid-row: calc(var(--tl-i, 0) * 2 + 1);
     grid-template-columns: minmax(0, 1fr) var(--tl-alt-rail-col);
     column-gap: 0;
@@ -1415,7 +1429,7 @@
 
   /* the text row, directly under its year — no top padding, so the two read
      as one entry and the wash across them has no seam */
-  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-issues] li {
+  timelinr-slider[data-timelinr-variant='list-alternating'] [data-timelinr-issues] li {
     grid-row: calc(var(--tl-i, 0) * 2 + 2);
     padding-block: 0 1.5rem;
     padding-inline: 0;
@@ -1426,30 +1440,30 @@
   /* odd li = entry 0, 2, 4 … = the LEFT side. Spanning 1/3 (content + rail)
      rather than stopping at the rail is what gives the line a box to paint
      in on this row. */
-  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(odd) a,
-  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:nth-child(odd) {
+  timelinr-slider[data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(odd) a,
+  timelinr-slider[data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:nth-child(odd) {
     grid-column: 1 / 3;
   }
 
   /* hold the body text off the rail by exactly one rail track, so it ends
      where the year above it ends */
-  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:nth-child(odd) {
+  timelinr-slider[data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:nth-child(odd) {
     padding-right: var(--tl-alt-rail-col);
   }
 
   /* even li = the RIGHT side: the rail column plus the far content column,
      with every horizontal anchor mirrored */
-  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(even) a,
-  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:nth-child(even) {
+  timelinr-slider[data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(even) a,
+  timelinr-slider[data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:nth-child(even) {
     grid-column: 2 / 4;
     text-align: left;
   }
 
-  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(even) a {
+  timelinr-slider[data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(even) a {
     grid-template-columns: var(--tl-alt-rail-col) minmax(0, 1fr);
   }
 
-  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:nth-child(even) {
+  timelinr-slider[data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:nth-child(even) {
     padding-left: var(--tl-alt-rail-col);
   }
 
@@ -1458,8 +1472,8 @@
   /* still both participants pinned to one cell and centred in it, exactly
      as in `list` — only which cell changes, so disc and glyph cannot drift
      apart or off the rail */
-  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(even) a::before,
-  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(even) a > svg {
+  timelinr-slider[data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(even) a::before,
+  timelinr-slider[data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(even) a > svg {
     grid-column: 1;
   }
 
@@ -1472,8 +1486,8 @@
      calc(100% - …) would resolve its percentage against (box - image), not
      the box. Both halves of an entry carry it, so the line is continuous
      down the whole column. */
-  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(odd) a,
-  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:nth-child(odd) {
+  timelinr-slider[data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(odd) a,
+  timelinr-slider[data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:nth-child(odd) {
     background-image: linear-gradient(var(--tl-border), var(--tl-border));
     background-repeat: no-repeat;
     background-origin: border-box;
@@ -1481,8 +1495,8 @@
     background-size: 2px 100%;
   }
 
-  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(even) a,
-  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:nth-child(even) {
+  timelinr-slider[data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:nth-child(even) a,
+  timelinr-slider[data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:nth-child(even) {
     background-image: linear-gradient(var(--tl-border), var(--tl-border));
     background-repeat: no-repeat;
     background-origin: border-box;
@@ -1497,22 +1511,22 @@
      medallion — carries no line at all. Only position-y and size are
      restated; the x anchor set by the parity rules above is what keeps each
      of these on the correct side. */
-  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:first-child a {
+  timelinr-slider[data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:first-child a {
     background-position-y: bottom 0;
     background-size: 2px 50%;
   }
 
-  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:last-child a {
+  timelinr-slider[data-timelinr-variant='list-alternating'] [data-timelinr-dates] li:last-child a {
     background-position-y: top 0;
     background-size: 2px 50%;
   }
 
-  [data-timelinr][data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:last-child {
+  timelinr-slider[data-timelinr-variant='list-alternating'] [data-timelinr-issues] li:last-child {
     background-image: none;
   }
 
   /* a one-entry timeline matches both end rules and has no rail to draw */
-  [data-timelinr][data-timelinr-variant='list-alternating']
+  timelinr-slider[data-timelinr-variant='list-alternating']
     [data-timelinr-dates]
     li:first-child:last-child
     a {
@@ -1526,17 +1540,17 @@
 
 @media (max-width: 640px) {
   /* shared: the slide's image-beside-text grid stacks */
-  [data-timelinr] [data-timelinr-issues] li {
+  timelinr-slider [data-timelinr-issues] li {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  [data-timelinr] [data-timelinr-issues] img {
+  timelinr-slider [data-timelinr-issues] img {
     grid-row: auto;
     width: min(100%, var(--tl-img-width, 26rem));
   }
 
-  [data-timelinr] [data-timelinr-issues] h3,
-  [data-timelinr] [data-timelinr-issues] p {
+  timelinr-slider [data-timelinr-issues] h3,
+  timelinr-slider [data-timelinr-issues] p {
     grid-column: 1;
   }
 
@@ -1544,7 +1558,7 @@
      positioned edge arrows. Those go in flow below the slide at this width
      (see the arrow rule below), so the gutters have nothing left to clear —
      drop them and give the narrow screen back the ~6rem. */
-  [data-timelinr][data-timelinr-variant='rail'] {
+  timelinr-slider[data-timelinr-variant='rail'] {
     padding-inline: 0;
   }
 
@@ -1562,8 +1576,8 @@
      slide — same chevron icon (::before still anchors to the button
      itself, which stays a positioned element), just not floating. rail is
      the only variant with edge arrows, so nothing else needs this. */
-  [data-timelinr][data-timelinr-variant='rail'] button[data-timelinr-prev],
-  [data-timelinr][data-timelinr-variant='rail'] button[data-timelinr-next] {
+  timelinr-slider[data-timelinr-variant='rail'] button[data-timelinr-prev],
+  timelinr-slider[data-timelinr-variant='rail'] button[data-timelinr-next] {
     position: relative;
     top: auto;
     left: auto;
@@ -1575,12 +1589,12 @@
   /* stack: stacked image+text no longer fits --tl-height on one screen:
      shrink the image so text has room, and scroll within the slide as a
      fallback */
-  [data-timelinr][data-timelinr-variant='stack'] [data-timelinr-issues] li {
+  timelinr-slider[data-timelinr-variant='stack'] [data-timelinr-issues] li {
     align-content: start;
     overflow-y: auto;
   }
 
-  [data-timelinr][data-timelinr-variant='stack'] [data-timelinr-issues] img {
+  timelinr-slider[data-timelinr-variant='stack'] [data-timelinr-issues] img {
     width: auto;
     max-height: 8rem;
     align-self: start;
@@ -1595,7 +1609,7 @@
      section 7 is gated on min-width and simply does not apply here, so the
      narrow fallback is the row layout above rather than a second set of
      small-screen rules to keep in step. */
-  [data-timelinr]:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) {
+  timelinr-slider:is([data-timelinr-variant='list'], [data-timelinr-variant='list-alternating']) {
     --tl-visible: 2;
     --tl-list-year-col: 2.75rem;
     --tl-list-icon-col: 2rem;

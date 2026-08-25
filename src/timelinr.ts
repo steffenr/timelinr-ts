@@ -1,7 +1,8 @@
+import { clearInitialized, markInitialized } from './registry';
 import type { Orientation, PlayDirection, TimelinrOptions, Variant } from './types';
 import { defaults } from './types';
+import { optionsFromAttributes } from './options';
 
-const initialized = new WeakSet<HTMLElement>();
 
 const TYPING_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
 
@@ -111,6 +112,12 @@ interface Parts {
   dots: HTMLElement | null;
 }
 
+/**
+ * The only DOMRect members #scrollDateIntoView reads. Declared as a Pick so
+ * a hand-built union box needs no assertion to DOMRect (which also promises
+ * x/y/width/height/toJSON that such a literal cannot supply).
+ */
+type Box = Pick<DOMRect, 'top' | 'right' | 'bottom' | 'left'>;
 export class Timelinr {
   readonly #root: HTMLElement;
   readonly #parts: Parts;
@@ -142,10 +149,12 @@ export class Timelinr {
   #index = 0;
   #timer: ReturnType<typeof setInterval> | undefined;
   #onDatesClick = (ev: Event) => {
-    const link = (ev.target as HTMLElement).closest('a');
+    const target = ev.target;
+    if (!(target instanceof Element)) return;
+    const link = target.closest('a');
     if (!link) return;
     ev.preventDefault();
-    const idx = this.#dateLinks.indexOf(link as HTMLElement);
+    const idx = this.#dateLinks.indexOf(link);
     if (idx >= 0) this.goTo(idx);
   };
   // Under the list variants every entry's text is on screen, so clicking a row's
@@ -197,9 +206,11 @@ export class Timelinr {
   #onStripNext = () => this.#scrollStrip(1);
   #dotButtons: HTMLButtonElement[] = [];
   #onDotsClick = (ev: Event) => {
-    const btn = (ev.target as HTMLElement).closest('button');
+    const target = ev.target;
+    if (!(target instanceof Element)) return;
+    const btn = target.closest('button');
     if (!btn) return;
-    const idx = this.#dotButtons.indexOf(btn as HTMLButtonElement);
+    const idx = this.#dotButtons.indexOf(btn);
     if (idx >= 0) this.goTo(idx);
   };
   #onKeydown = (ev: KeyboardEvent) => {
@@ -294,15 +305,22 @@ export class Timelinr {
     this.#status.setAttribute('aria-atomic', 'true');
     this.#status.className = 'tl-visually-hidden';
     root.appendChild(this.#status);
-
+    // Precedence by spread order: constructor options win over the
+    // data-timelinr-* attributes, which win over defaults — consistent with
+    // how variant/orientation have always resolved. The five scalar options
+    // come through the shared parser (the same one <timelinr-slider> uses);
+    // orientation/variant stay with resolveLayout() above, whose
+    // cross-derivation is not expressible as a merge.
+    const attrOptions = optionsFromAttributes(root);
     this.#opts = {
       orientation: layout.orientation,
       variant: layout.variant,
-      startAt: options.startAt ?? defaults.startAt,
-      arrowKeys: options.arrowKeys ?? defaults.arrowKeys,
-      autoPlay: options.autoPlay ?? defaults.autoPlay,
-      autoPlayDirection: options.autoPlayDirection ?? defaults.autoPlayDirection,
-      autoPlayPause: options.autoPlayPause ?? defaults.autoPlayPause,
+      startAt: options.startAt ?? attrOptions.startAt ?? defaults.startAt,
+      arrowKeys: options.arrowKeys ?? attrOptions.arrowKeys ?? defaults.arrowKeys,
+      autoPlay: options.autoPlay ?? attrOptions.autoPlay ?? defaults.autoPlay,
+      autoPlayDirection:
+        options.autoPlayDirection ?? attrOptions.autoPlayDirection ?? defaults.autoPlayDirection,
+      autoPlayPause: options.autoPlayPause ?? attrOptions.autoPlayPause ?? defaults.autoPlayPause,
     };
 
     dates.addEventListener('click', this.#onDatesClick);
@@ -393,7 +411,7 @@ export class Timelinr {
       this.#syncStripOverflow();
     }
 
-    initialized.add(root);
+    markInitialized(root);
     this.#apply(Math.max(0, Math.min(this.count - 1, this.#opts.startAt - 1)), false);
   }
 
@@ -509,7 +527,7 @@ export class Timelinr {
         this.#root.setAttribute('data-timelinr-variant', this.#previousVariantAttr);
       }
     }
-    initialized.delete(this.#root);
+    clearInitialized(this.#root);
   }
 
   /**
@@ -603,7 +621,7 @@ export class Timelinr {
     // Align the WHOLE entry: link ∪ issue item under the list variants.
     // Carousel items are transform-positioned slides; their rects say
     // nothing about visibility.
-    let lRect = link.getBoundingClientRect();
+    let lRect: Box = link.getBoundingClientRect();
     if (!this.#carousel) {
       const item = this.#items[index];
       if (item) {
@@ -613,12 +631,11 @@ export class Timelinr {
           right: Math.max(lRect.right, iRect.right),
           top: Math.min(lRect.top, iRect.top),
           bottom: Math.max(lRect.bottom, iRect.bottom),
-        } as DOMRect;
+        };
       }
     }
 
-    for (let i = chain.length - 1; i >= 0; i--) {
-      const c = chain[i]!;
+    for (const c of [...chain].reverse()) {
       if (!isUserScrollable(c)) continue;
       const cRect = c.getBoundingClientRect();
       // The alignment band: the container's on-screen portion, inset by its
@@ -703,6 +720,11 @@ export class Timelinr {
     }
   }
 
+  /** True while the autoplay interval is actually scheduled (not hover-paused). */
+  get playing(): boolean {
+    return this.#timer !== undefined;
+  }
+
   #startTimer(): void {
     this.#stopTimer();
     this.#timer = setInterval(() => this.#step(), this.#opts.autoPlayPause);
@@ -752,17 +774,3 @@ export class Timelinr {
   }
 }
 
-/** Initialize every `[data-timelinr]` element under `scope` that isn't initialized yet. */
-export function autoInit(scope: ParentNode = document): Timelinr[] {
-  const roots = scope.querySelectorAll<HTMLElement>('[data-timelinr]');
-  const instances: Timelinr[] = [];
-  roots.forEach((root) => {
-    if (initialized.has(root)) return;
-    try {
-      instances.push(new Timelinr(root));
-    } catch (err) {
-      console.error(err);
-    }
-  });
-  return instances;
-}
