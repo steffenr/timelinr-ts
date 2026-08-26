@@ -164,7 +164,7 @@ never fight over the same keypress.
 | `stack` | vertical | Dates run down a clipped, fixed-height column on the left, side by side with the slide on the right. The column scrolls in fixed steps to keep the active year a couple of rows from the top; the active year gets a tinted pill and a filled dot on a continuous rail. Slides slide vertically. | `prev` / `next`, moved top/bottom-centre with up/down chevrons; `counter` |
 | `tabs` | horizontal | Years become pills in a row that scrolls horizontally, the active pill filled in `--tl-accent`. When the row overflows it fades at the side with more and grows a pair of library-created chevron buttons that scroll it. Dot pagination sits below the slide. Slides slide horizontally. | `dots` |
 | `list` | vertical | One row per entry — year, themed icon medallion (inline `<svg>`, see Icons), title and body all in line — threaded onto a continuous rail down the left. Every entry is visible at once: non-active rows are greyed to `--tl-muted`, and the active row is washed in `--tl-accent` across its full width. There is no separate slide panel and nothing slides; the list scrolls natively inside a windowed viewport, and clicking a row's text selects it. Images are hidden. | `prev` / `next`, with up/down chevrons, pinned to the top-right and bottom-right of the scroll window |
-| `list-alternating` | vertical | `list` with the rail moved to the **middle** and entries hung alternately off either side of it: each entry shows its year (with the medallion on the rail) above its title and body, right-aligned on the left-hand side and left-aligned on the right. Same colours, same interleave, same scrolling and same click-to-select. Below 641px it falls back to the plain `list` row, because two alternating columns of prose don't fit a phone. | same as `list` |
+| `list-alternating` | vertical | `list` with the rail moved to the **middle** and entries hung alternately off either side of it: each entry shows its year (with the medallion on the rail) above its title and body, right-aligned on the left-hand side and left-aligned on the right. Same colours, same interleave, same scrolling and same click-to-select. When the component itself is narrow it falls back to the plain `list` row, because two alternating columns of prose don't fit a narrow box. | same as `list` |
 
 The library wires up every optional part it finds, but the *styling* splits two
 ways:
@@ -194,7 +194,9 @@ entries they float above.
 
 Prev/next render as a chevron icon rather than a labelled button, so keep your
 `aria-label` on them: the visible text content is collapsed, and `aria-label`
-is what supplies the accessible name. On narrow viewports (≤640px) a slide's
+is what supplies the accessible name. When the component itself is narrow
+(≤640px of available width — a phone, or the same slider in a narrow column
+on a wide page) a slide's
 image stacks above its text, and `rail` moves its arrows into flow below the
 slide rather than floating them over the image. Its progress line stays — it is
 drawn at every width now.
@@ -313,7 +315,7 @@ No icon set ships with the library. `examples/list/` and
 #### Window size (`list`, `list-alternating`)
 
 `--tl-row` is the nominal entry height and `--tl-visible` (default `5`; `2`
-below 640px) how many of those the scroll window is tall — the timeline root
+when the component is narrow) how many of those the scroll window is tall — the timeline root
 gets `max-height: calc(var(--tl-visible) * var(--tl-row))` and scrolls, keeping
 the active entry in view. `--tl-row` defaults to `5rem` for `list` and `9rem`
 for `list-alternating`, whose entries are two rows tall (year above text).
@@ -349,9 +351,10 @@ Override custom properties on the root or any ancestor:
 | `--tl-list-max-height` | `calc(var(--tl-visible) * var(--tl-row))` | the `list` variants — replaces the whole scroll window; `none` auto-sizes to content (see above) |
 | `--tl-row` / `--tl-visible` | `5rem` (`9rem` for `list-alternating`) / `5` | the `list` variants (see above) |
 | `--tl-alt-rail-col` | `3rem` | `list-alternating`'s centre rail track — every horizontal position in that layout derives from it |
+| `--tl-pad-block` / `--tl-pad-inline` | `1.25rem` / `2rem` | all — the component's own edge spacing inside its `--tl-bg` box (`rail` widens the inline pad to `3rem` to clear its edge arrows; when narrow it falls back to `--tl-pad-inline`) |
 | `--tl-scroll-margin-top` / `--tl-scroll-margin-bottom` | `0px` | all — overlay space (a fixed site header, typically) reserved when an entry is scrolled against a viewport edge; see "Where the active entry lands" |
 
-`stack`'s slide image uses a fixed `max-height` (`11rem`; `8rem` below 640px)
+`stack`'s slide image uses a fixed `max-height` (`11rem`; `8rem` when the component is narrow)
 rather than an aspect ratio, because its column has a fixed height budget. That
 cap is tuned for the `26rem` `--tl-height` used in `examples/stack/`; with a very
 different `--tl-height`, override

@@ -82,7 +82,12 @@ files, not the `.ts`/source directly (see Gotchas).
   microtask, then warn); a DOM move caches `{index, playing}` on
   disconnect and restores on reconnect instead of resetting; an attribute
   change after init rebuilds but carries the current index across (editing
-  `autoPlayPause` must not snap back to slide 1); attributes firing before
+  `autoPlayPause` must not snap back to slide 1). ONE exception: when
+  `data-timelinr-autoplay` ITSELF is the attribute that changed, the new
+  value drives playback (on → play, off → pause) — it is a runtime toggle
+  for playgrounds/CMS switches, and the old live-state-wins reconcile made
+  it a silent no-op. Every other rebuild still carries playing state;
+  attributes firing before
   `connectedCallback` (upgrade time) hit the `#instance == null` guard; the
   instance reference is dropped BEFORE destroy() in both teardown paths,
   because destroy() reverts the library-written variant attribute and that
@@ -256,6 +261,28 @@ files, not the `.ts`/source directly (see Gotchas).
   entry. Tests stub geometry (happy-dom has none); the layout itself is
   browser-verified only.
 
+- **The narrow/wide layout switch keys off the COMPONENT's width, not the
+  viewport's.** A `@media (max-width: 640px)` query cannot distinguish a
+  full-width rail from the same rail inside a 400px card, so both former
+  media blocks (the `list-alternating` wide layout and the shared narrow
+  tuning) are keyed off a `data-timelinr-narrow` attribute that
+  `#narrowObserver` (a ResizeObserver on the root, threshold `NARROW_MAX =
+  640` in `src/timelinr.ts`) writes and `destroy()` removes. CSS container
+  queries were evaluated first and rejected: an `@container` rule can never
+  style its own container, and both blocks style the ROOT (the
+  list-alternating grid, rail's gutters, list's `--tl-visible`).
+  Measurement-driven state follows the `#syncStripOverflow` precedent and
+  stays inside the "JS only toggles classes and writes custom properties"
+  invariant — the attribute is derived from geometry, never content. Without
+  ResizeObserver the attribute never appears and every variant renders wide
+  (the pre-2.1 default). The base rule also carries the edge-spacing tokens
+  `--tl-pad-block: 1.25rem` / `--tl-pad-inline: 2rem` — the component paints
+  `--tl-bg`, so flush content read as cramped against a contrasting page;
+  variant blocks override where their chrome needs more (rail `3rem` gutters,
+  stack `2.25rem` block), and absolutely-positioned arrows resolve against
+  the padding BOX, so the padding does not push them inward.
+
+
 ### Per-variant layout
 
 The five variants are the presentation layer; `styles/timelinr.css` has one
@@ -337,7 +364,7 @@ chevron-mask technique, documented in the prev/next bullet below.
 
 - **`stack`'s image height is a hardcoded cap, not derived.** The shared base
   gives slide images `width: 100%` + `aspect-ratio: 4 / 3`; the stack block
-  overrides that with `width: auto; max-height: 11rem` (`8rem` below 640px),
+  overrides that with `width: auto; max-height: 11rem` (`8rem` when narrow),
   so the aspect ratio drives width from a capped height instead of the other
   way round. This exists because stack has a *fixed* overall height
   (`--tl-height`, default 70vh, minus `padding-block: 2.25rem`) shared by the
@@ -535,7 +562,7 @@ chevron-mask technique, documented in the prev/next bullet below.
     `ul`s hold the same number of `li`s in the same order) is what guarantees
     the two sides agree on parity; if that contract is ever loosened, this
     breaks before anything else does.
-  - *Gated on `min-width: 641px`.* Two alternating columns of prose are
+  - *Gated on the root NOT carrying `data-timelinr-narrow`.* Two alternating columns of prose are
     unreadable on a phone. The narrow fallback is not a second layout to
     maintain: section 7 simply does not apply, so `list-alternating` renders
     as `list`, whose own narrow tuning in section 8 already names both
@@ -587,16 +614,17 @@ chevron-mask technique, documented in the prev/next bullet below.
   `position: relative`); the shared default is the left/right edge pair,
   vertically centred; `rail` overrides it to a `2.25rem` circular pair at
   `top: 1.5rem` sitting in the root's `padding-inline: 3rem` gutters (which
-  exist only to clear those arrows, and are dropped below 640px along with the
-  floating); `stack` moves them to `top: 0` / `bottom: 0`, horizontally
+  exist only to clear those arrows; when the root is NARROW the gutters drop
+  to the base `1.25rem` edge padding along with
+  the floating); `stack` moves them to `top: 0` / `bottom: 0`, horizontally
   centred, cleared by the root's `padding-block: 2.25rem` (if you resize the
   arrows, re-check that padding still clears them). Edge anchoring only looks right while the slide
-  is a single row (image beside text, above 640px); once content stacks, the
-  `@media (max-width: 640px)` block switches the arrows to `position:
+  is a single row (image beside text, wide); once content stacks, the narrow
+  block switches the arrows to `position:
   relative` (in flow below the slide) — **scoped to
   `[data-timelinr-variant='rail']`**, since it is the only variant with edge
   arrows, and stack's top/bottom pair never overlaps the stacked image. Don't
-  drop that scoping without re-checking mobile. The button's own text content
+  drop that scoping without re-checking a narrow box. The button's own text content
   (`‹`/`›` in the example markup) is collapsed via `font-size: 0` purely to
   keep it simple (no wrapper span, no text-indent hack); it isn't for
   accessibility — `aria-label` already wins the accessible-name computation
