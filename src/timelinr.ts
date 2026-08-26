@@ -54,6 +54,16 @@ const LIST_VARIANTS = new Set<Variant>(['list', 'list-alternating']);
 const STRIP_VARIANTS = new Set<Variant>(['rail', 'tabs']);
 
 /**
+ * Root widths at or below this many pixels get the narrow layout
+ * (`data-timelinr-narrow` on the root). Chosen to match the 640px
+ * viewport breakpoint this state replaced — but it measures the
+ * COMPONENT, so a timeline in a narrow column goes narrow even on a
+ * wide screen. The stylesheet keys every former @media rule off the
+ * attribute; this constant and those selectors move together.
+ */
+const NARROW_MAX = 640;
+
+/**
  * Cross-derives variant and orientation so either one alone is enough markup.
  * Explicit values always win; an unrecognised attribute is ignored rather than
  * thrown on, matching how orientation has always been read.
@@ -145,6 +155,8 @@ export class Timelinr {
   #stripPrev: HTMLButtonElement | null = null;
   #stripNext: HTMLButtonElement | null = null;
   #stripObserver: ResizeObserver | null = null;
+  /** Watches the root's own width; see NARROW_MAX. */
+  #narrowObserver: ResizeObserver | null = null;
   #opts: Required<TimelinrOptions>;
   #index = 0;
   #timer: ReturnType<typeof setInterval> | undefined;
@@ -411,6 +423,29 @@ export class Timelinr {
       this.#syncStripOverflow();
     }
 
+    // The narrow/wide layout switch is a fact about THIS BOX, not the
+    // viewport: the same page can hold a full-width rail and the same rail
+    // in a 400px card, and a @media query cannot tell them apart. The
+    // observer publishes the state as one attribute the stylesheet keys the
+    // former @media blocks off. CSS container queries were evaluated first
+    // and rejected: an @container rule can never style its own container,
+    // and both responsive blocks style the ROOT (list-alternating's grid,
+    // rail's gutters, list's --tl-visible). Measurement-driven state has
+    // precedent here — #syncStripOverflow works the same way. Guarded like
+    // #stripObserver: without ResizeObserver the attribute never appears and
+    // every variant renders its wide layout, the pre-2.1 behaviour.
+    if (typeof ResizeObserver !== 'undefined') {
+      this.#narrowObserver = new ResizeObserver((entries) => {
+        const width = entries[0]?.contentRect.width ?? this.#root.clientWidth;
+        const narrow = width <= NARROW_MAX;
+        if (narrow !== this.#root.hasAttribute('data-timelinr-narrow')) {
+          if (narrow) this.#root.setAttribute('data-timelinr-narrow', '');
+          else this.#root.removeAttribute('data-timelinr-narrow');
+        }
+      });
+      this.#narrowObserver.observe(this.#root);
+    }
+
     markInitialized(root);
     this.#apply(Math.max(0, Math.min(this.count - 1, this.#opts.startAt - 1)), false);
   }
@@ -510,6 +545,9 @@ export class Timelinr {
     // puts on an element that is neither the root nor an entry; it only exists
     // under the list variants, and #itemsList is null otherwise.
     this.#itemsList?.removeAttribute('role');
+    this.#narrowObserver?.disconnect();
+    this.#narrowObserver = null;
+    this.#root.removeAttribute('data-timelinr-narrow');
     this.#status.remove();
     this.#root.removeAttribute('role');
     this.#root.removeAttribute('aria-roledescription');

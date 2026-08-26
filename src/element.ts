@@ -73,16 +73,14 @@ export class TimelinrElement extends HTMLElement {
     instance.destroy();
   }
 
-  attributeChangedCallback(): void {
+  attributeChangedCallback(name: string): void {
     // Attributes present in the source markup fire during upgrade, BEFORE
     // connectedCallback — there is no instance yet, so there is nothing to
     // rebuild and connectedCallback will read them fresh anyway.
     if (!this.#instance) return;
     // Cheapest correct implementation: tear down and rebuild. Coarse for
     // autoPlayPause but exact for variant/orientation, whose ARIA model and
-    // layout differ per value. The current index (and live autoplay state)
-    // carries across, so editing one pause length doesn't visibly snap the
-    // timeline back to its first slide.
+    // layout differ per value. The current index carries across.
     const instance = this.#instance;
     const index = instance.index;
     const wasPlaying = instance.playing;
@@ -93,7 +91,19 @@ export class TimelinrElement extends HTMLElement {
     instance.destroy();
     const opts = optionsFromAttributes(this);
     opts.startAt = index + 1;
-    this.#reconcile(opts, wasPlaying);
+    this.#instance = new Timelinr(this, opts);
+    if (name === 'data-timelinr-autoplay') {
+      // The autoplay attribute is the INPUT for its own runtime toggle:
+      // flipping it must start/stop playback (playground switches, CMS
+      // toggles), not preserve it. The reconciliation below is for every
+      // OTHER attribute, where live playback state must survive the rebuild.
+      if (opts.autoPlay) this.#instance.play();
+      else this.#instance.pause();
+    } else if (wasPlaying && !opts.autoPlay) {
+      this.#instance.play();
+    } else if (!wasPlaying && opts.autoPlay) {
+      this.#instance.pause();
+    }
   }
 
   /**

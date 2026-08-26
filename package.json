@@ -46,6 +46,10 @@
     "build:examples": "node scripts/build-examples.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "website:dev": "npm --prefix website run dev",
+    "website:build": "npm --prefix website run build",
+    "website:preview": "npm --prefix website run preview",
+    "website:typecheck": "npm --prefix website run typecheck",
     "prepublishOnly": "npm test && npm run typecheck && npm run build:lib"
   },
   "publishConfig": {

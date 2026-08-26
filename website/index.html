@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>timelinr — Framework-agnostic timeline slider</title>
+  <meta name="description" content="A lightweight, accessible, framework-agnostic timeline slider built with TypeScript. Zero runtime dependencies, five layout variants." />
+  <link rel="canonical" href="https://steffenr.github.io/timelinr-ts/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="timelinr — Framework-agnostic timeline slider" />
+  <meta property="og:description" content="A lightweight, accessible, framework-agnostic timeline slider built with TypeScript. Zero runtime dependencies, five layout variants." />
+  <meta property="og:url" content="https://steffenr.github.io/timelinr-ts/" />
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d1117" />
+  <script>
+    // Runs before first paint: stored choice wins, else the OS preference.
+    document.documentElement.dataset.theme =
+      localStorage.getItem('tl-theme') ??
+      (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  </script>
+  <script type="module" src="./src/main.ts"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-container">
+      <div class="wordmark-badge-wrapper">
+          <a class="wordmark" href="#top">time<em>linr</em></a>
+          <span class="element-badge">&lt;timelinr-slider&gt;</span>
+      </div>
+      <nav class="site-nav" aria-label="Main">
+        <a href="#variants">Variants</a>
+        <a href="#playground">Playground</a>
+        <a href="#install">Install</a>
+        <a class="nav-github" href="https://github.com/steffenr/timelinr-ts">
+          GitHub
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+        </a>
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" aria-pressed="false">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- Hero -->
+    <section class="hero" id="demo" aria-labelledby="hero-heading">
+      <div class="site-container">
+        <p class="hero-badges">
+          <span class="badge">TypeScript</span>
+          <span class="badge">Zero dependencies</span>
+          <span class="badge">Accessible</span>
+          <span class="badge">Framework-agnostic</span>
+        </p>
+        <h1 id="hero-heading">Timelines. Made simple.</h1>
+        <p class="hero-copy">
+            A lightweight, accessible timeline slider for the modern web. Drop it into any project — no framework required.
+        </p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#playground">Try the interactive demo &rarr;</a>
+          <a class="button button-secondary" href="https://github.com/steffenr/timelinr-ts">View on GitHub</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Variant showcase -->
+    <section id="variants" aria-labelledby="variants-heading">
+      <div class="site-container">
+        <div class="section-heading">
+          <h2 id="variants-heading">One component. Five ways to tell the story.</h2>
+          <p>Same timeline data. Different presentation. Pick the layout that fits your content.</p>
+        </div>
+        <div class="showcase-grid">
+          <article class="variant-card">
+            <svg class="feature-icon" stroke="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M9.2 17a3 3 0 0 1 5.6 0H20l1 1-1 1h-5.2a3 3 0 0 1-5.6 0H3l1-1-1-1zm2.8 2a1 1 0 1 0 0-2 1 1 0 0 0 0 2m2-7-2 2-2-2H7a2 2 0 0 1-2-2V5q.2-1.8 2-2h10a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2zM7 5v5h4l1 1 1-1h4V5z"/></svg>
+            <h3>Rail</h3>
+            <p>A horizontal rail of dates over a progress line. One slide at a time, navigated with arrows, clicks or keys.</p>
+          </article>
+          <article class="variant-card">
+            <svg class="feature-icon" viewBox="0 0 32 32" stroke="currentColor"><path d="M26 24v2H6v-2zm2-2H4v6h24zm-2-7v2H6v-2zm2-2H4v6h24zm-2-7v2H6V6zm2-2H4v6h24z"/></svg>
+            <h3>Stack</h3>
+            <p>A vertical timeline with a fixed-height stage. The dates column scrolls beside the active slide — built for tall, narrow layouts.</p>
+          </article>
+          <article class="variant-card">
+            <svg class="feature-icon" viewBox="0 0 24 24" stroke="currentColor"><path fill-rule="nonzero" d="M11.3 8H19c1.6.1 2.9 1.4 3 3v7.7c0 1.8-1.4 3.2-3 3.3h-7.7A3.3 3.3 0 0 1 8 19v-7.8C8 9.5 9.4 8.1 11 8zM9.5 18.7v.3q.4 1.3 1.6 1.5h7.7q1.5-.1 1.7-1.6v-7.7q-.2-1.6-1.7-1.7h-7.5q-1.6.1-1.8 1.6v7.6M15.8 5h.2q2 .3 2.8 2H17q-.5-.5-1.1-.5H8.3q-1.6.1-1.8 1.6V16q0 .7.5 1v1.9q-1.8-.9-2-2.9V8.3C5 6.5 6.4 5 8 5h7.8m-3-3q2 .1 2.9 1.9V4H14q-.5-.5-1.1-.5H5.3q-1.6.1-1.8 1.6v7.7q0 .7.5 1.2v1.8q-1.8-.8-2-2.9V5.3C2 3.5 3.4 2 5 2h7.8"/></svg>
+            <h3>Tabs</h3>
+            <p>Date pills behave as tabs for quick navigation across points in time, with scroll buttons when the strip overflows.</p>
+          </article>
+          <article class="variant-card">
+            <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-timeline-icon lucide-timeline"><path d="M4 12h.01"/><path d="M4 16h.01"/><path d="M4 20h.01"/><path d="M4 4h.01"/><path d="M4 8h.01"/><path d="M9.414 13.414a2 2 0 0 0 1.414.586H19a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-8.172a2 2 0 0 0-1.414.586L8 12z"/><path d="M9.414 21.414a2 2 0 0 0 1.414.586H19a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-8.172a2 2 0 0 0-1.414.586L8 20z"/><path d="M9.414 5.414A2 2 0 0 0 10.828 6H19a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1h-8.172a2 2 0 0 0-1.414.586L8 4z"/></svg>
+            <h3>List</h3>
+            <p>Every entry on screen at once — one row per point in time, with the active row highlighted. Reads as a list, because it is one.</p>
+          </article>
+          <article class="variant-card">
+            <svg class="feature-icon" xml:space="preserve" fill="currentColor" fill-rule="evenodd" stroke="currentColor" stroke-linejoin="round" stroke-miterlimit="2" class="feature-icon" clip-rule="evenodd" viewBox="-51.2 -51.2 614.4 614.4"><path fill-rule="nonzero" d="M256 208.5a20.9 20.9 0 1 1 0-41.8 20.9 20.9 0 0 1 0 41.8m0 136.8a20.9 20.9 0 1 1 0-41.8 20.9 20.9 0 0 1 0 41.8m0 136.7a20.9 20.9 0 1 1 0-41.8 20.9 20.9 0 0 1 0 41.8m0-452a20.9 20.9 0 1 1 0 41.8 20.9 20.9 0 0 1 0-41.8m50.9 20.9A51 51 0 1 0 241 99.5V139a51 51 0 0 0 0 97.2v39.6a51 51 0 0 0 0 97.2v39.5a51 51 0 1 0 30 0V373a51 51 0 0 0 0-97.2v-39.6a51 51 0 0 0 0-97.2V99.5a51 51 0 0 0 35.9-48.6M140.2 61.5a15 15 0 0 1-10.6 4.4H50.4q-6.1-.1-10.6-4.4a15 15 0 0 1 0-21.2q4.5-4.4 10.6-4.4h79.2a15 15 0 0 1 15 15q-.1 6.2-4.4 10.6M129.6 5.9H50.4a44.7 44.7 0 0 0-45 45 44.7 44.7 0 0 0 45 45h79.2a44.7 44.7 0 0 0 45-45 44.7 44.7 0 0 0-45-45M140.2 335a15 15 0 0 1-10.6 4.4H50.4q-6.1-.1-10.6-4.4a15 15 0 0 1 0-21.2q4.5-4.4 10.6-4.4h79.2a15 15 0 0 1 15 15c0 4-1.6 7.8-4.4 10.6m-10.6-55.6H50.4a44.7 44.7 0 0 0-45 45 44.7 44.7 0 0 0 45 45h79.2a44.7 44.7 0 0 0 45-45 44.7 44.7 0 0 0-45-45M371.8 177c2.8-2.8 6.6-4.4 10.6-4.4h79.2a15 15 0 0 1 15 15 15 15 0 0 1-15 15h-79.2a15 15 0 0 1-15-15q0-6.1 4.4-10.6m10.6 55.6h79.2a44.7 44.7 0 0 0 45-45 44.7 44.7 0 0 0-45-45h-79.2a44.7 44.7 0 0 0-45 45 45 45 0 0 0 45 45M472.2 471.7a15 15 0 0 1-10.6 4.4h-79.2a15 15 0 0 1-15-15 15 15 0 0 1 15-15h79.2a15 15 0 0 1 15 15c0 4-1.6 7.8-4.4 10.6m-10.6-55.6h-79.2a44.7 44.7 0 0 0-45 45 45 45 0 0 0 45 45h79.2a44.7 44.7 0 0 0 45-45 44.7 44.7 0 0 0-45-45M159.6 142.4h-111a15 15 0 0 0 0 30h111a15 15 0 0 0 0-30M159.6 202.9H110a15 15 0 1 0 0 30h49.6a15 15 0 0 0 0-30M352.4 309.1h111a15 15 0 0 0 0-30h-111a15 15 0 0 0 0 30M352.4 369.6H402a15 15 0 0 0 0-30h-49.6a15 15 0 1 0 0 30"/></svg>
+            <h3>Alternating</h3>
+            <p>The list with a central rail: entries alternate sides of the timeline. Falls back to the plain list on narrow screens.</p>
+          </article>
+        </div>
+        <p class="showcase-cta">See them all live in the <a href="#playground">playground</a> &darr;</p>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section id="features" class="section-alt" aria-labelledby="features-heading">
+      <div class="site-container">
+        <div class="section-heading">
+          <h2 id="features-heading">Why timelinr?</h2>
+        </div>
+        <div class="features-grid">
+          <div class="feature">
+            <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="14" y="3" rx="1"/><path d="M10 21V8a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1H3"/></svg>
+            <h3>Framework-agnostic</h3>
+            <p>Use it with plain HTML, your existing JavaScript stack, or the framework you already use.</p>
+          </div>
+          <div class="feature">
+            <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22V12"/><path d="M12 12H2v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-8h-10z"/><path d="M2 12V7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/></svg>
+            <h3>Zero runtime dependencies</h3>
+            <p>One self-registering custom element with a small browser footprint.</p>
+          </div>
+          <div class="feature">
+            <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="16" cy="4" r="1"/><path d="m18 19 1-7-6 1"/><path d="m5 8 3-3 5.5 3-2.36 3.5"/><path d="M4.24 14.5a5 5 0 0 0 6.88 6"/><path d="M13.76 17.5a5 5 0 0 0-6.88-6"/></svg>
+            <h3>Accessible by default</h3>
+            <p>ARIA semantics, keyboard navigation, current-state announcements, and reduced-motion support.</p>
+          </div>
+          <div class="feature">
+            <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>
+            <h3>Built for real content</h3>
+            <p>Horizontal and vertical layouts, multiple visual variants, themes, autoplay, and responsive behaviour.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- Playground -->
+    <section id="playground" aria-labelledby="playground-heading">
+      <div class="site-container">
+        <div class="section-heading">
+          <h2 id="playground-heading">Playground.</h2>
+          <p>Choose a layout or theme. The component below is the same <code>&lt;timelinr-slider&gt;</code> you can install in your own project.</p>
+        </div>
+        <div class="playground-panel">
+          <form id="playground-controls" class="playground-controls">
+            <fieldset class="control-group">
+              <legend>Variant</legend>
+              <div class="segmented">
+                <input type="radio" name="variant" value="rail" id="pv-rail" checked /><label for="pv-rail">Rail</label>
+                <input type="radio" name="variant" value="stack" id="pv-stack" /><label for="pv-stack">Stack</label>
+                <input type="radio" name="variant" value="tabs" id="pv-tabs" /><label for="pv-tabs">Tabs</label>
+                <input type="radio" name="variant" value="list" id="pv-list" /><label for="pv-list">List</label>
+                <input type="radio" name="variant" value="list-alternating" id="pv-alt" /><label for="pv-alt">Alternating</label>
+              </div>
+            </fieldset>
+            <fieldset class="control-group">
+              <legend>Theme</legend>
+              <div class="segmented">
+                <input type="radio" name="theme" value="default" id="pt-default" checked /><label for="pt-default"><span class="theme-dot" style="background:#ffffff"></span></label>
+                <input type="radio" name="theme" value="dark" id="pt-dark" /><label for="pt-dark" aria-label="Dark theme"><span class="theme-dot" style="background:#101319"></span></label>
+                <input type="radio" name="theme" value="ocean" id="pt-ocean" /><label for="pt-ocean" aria-label="Ocean theme"><span class="theme-dot" style="background:#086478"></span></label>
+                <input type="radio" name="theme" value="forest" id="pt-forest" /><label for="pt-forest" aria-label="Forest theme"><span class="theme-dot" style="background:#256b46"></span></label>
+                <input type="radio" name="theme" value="sunset" id="pt-sunset" /><label for="pt-sunset" aria-label="Sunset theme"><span class="theme-dot" style="background:#fbe3d2"></span></label>
+              </div>
+            </fieldset>
+            <label class="switch">
+              <input type="checkbox" name="autoplay" />
+              Autoplay
+            </label>
+          </form>
+          <div class="playground-stage" id="playground-timeline"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Code + Install -->
+    <section id="install" aria-labelledby="install-heading">
+      <div class="site-container">
+        <div class="section-heading">
+          <h2 id="install-heading">Just HTML.</h2>
+          <p>
+            No framework. No glue code. Describe your timeline in markup and let
+            timelinr handle the interaction — the <a href="https://github.com/steffenr/timelinr-ts#readme">documentation</a>
+            covers every attribute, variant and theme.
+          </p>
+        </div>
+        <div class="code-panel">
+          <header>
+            <span>HTML</span>
+            <button type="button" class="copy-button" data-copy="code-sample">Copy</button>
+          </header>
+<pre id="code-sample"><code>&lt;link rel="stylesheet" href="node_modules/timelinr-ts/dist/timelinr.css" /&gt;
+&lt;script type="module" src="node_modules/timelinr-ts/dist/timelinr.element.js" /&gt;
+
+&lt;timelinr-slider
+  data-timelinr-variant="rail"
+  data-timelinr-arrow-keys&gt;
+
+  &lt;div data-timelinr-dates&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href="#1900"&gt;1900&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href="#1930"&gt;1930&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/div&gt;
+
+  &lt;div data-timelinr-issues&gt;
+    &lt;ul&gt;
+      &lt;li&gt;
+        &lt;img src="1900.jpg" alt="" /&gt;
+        &lt;h3&gt;1900 — A new century&lt;/h3&gt;
+        &lt;p&gt;...&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;img src="1930.jpg" alt="" /&gt;
+        &lt;h3&gt;1930 — Hard times&lt;/h3&gt;
+        &lt;p&gt;...&lt;/p&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/div&gt;
+
+  &lt;button type="button" data-timelinr-prev
+    aria-label="Previous"&gt;&amp;#8249;&lt;/button&gt;
+  &lt;button type="button" data-timelinr-next
+    aria-label="Next"&gt;&amp;#8250;&lt;/button&gt;
+&lt;/timelinr-slider&gt;</code></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-container">
+      <div class="footer-brand">
+        <span class="wordmark">time<em>linr</em></span>
+        <p>A framework-agnostic timeline slider for the modern web.</p>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <div>
+          <h3>Project</h3>
+          <ul>
+            <li><a href="https://github.com/steffenr/timelinr-ts">GitHub</a></li>
+            <li><a href="https://www.npmjs.com/package/timelinr-ts">npm</a></li>
+            <li><a href="https://github.com/steffenr/timelinr-ts#readme">Documentation</a></li>
+            <li><a href="https://github.com/steffenr/timelinr-ts/blob/main/CHANGELOG.md">Changelog</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/steffenr/timelinr-ts/discussions">Discussions</a></li>
+            <li><a href="https://github.com/steffenr/timelinr-ts/issues">Issues</a></li>
+          </ul>
+        </div>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>
