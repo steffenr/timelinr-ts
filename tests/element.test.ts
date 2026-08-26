@@ -190,6 +190,23 @@ describe('<timelinr-slider>', () => {
     expect(el.index).toBe(3);
   });
 
+  it('toggling data-timelinr-autoplay at runtime starts and stops playback', () => {
+    const el = makeSlider();
+    document.body.appendChild(el);
+    expect(vi.getTimerCount()).toBe(0);
+
+    el.setAttribute('data-timelinr-autoplay', 'true');
+    expect(vi.getTimerCount()).toBeGreaterThanOrEqual(1);
+    vi.advanceTimersByTime(4000);
+    expect(el.index).toBe(1);
+
+    el.setAttribute('data-timelinr-autoplay', 'false');
+    expect(vi.getTimerCount()).toBe(0);
+    const at = el.index;
+    vi.advanceTimersByTime(90000);
+    expect(el.index).toBe(at);
+  });
+
   it('keeps index and playing state across a DOM move', () => {
     const host = document.createElement('div');
     document.body.append(host);
