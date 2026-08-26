@@ -250,6 +250,12 @@ section {
   }
 }
 
+@media (max-width: 900px) {
+  .element-badge {
+    display: none;
+  }
+}
+
 /* ---------- buttons ---------- */
 
 .button {
