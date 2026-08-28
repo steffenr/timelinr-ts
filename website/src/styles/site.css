@@ -569,6 +569,11 @@ section {
   cursor: pointer;
 }
 
+.switch svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
 .switch input {
   appearance: none;
   inline-size: 2.5rem;
@@ -670,11 +675,49 @@ section {
   color: var(--site-code-bg);
 }
 
+/* Icon-only twin of the copy button, on the playground panel rather than the
+   dark code panel. The three glyphs live in the markup; one shows per state. */
+.playground-copy {
+  display: inline-flex;
+  margin-left: auto;
+  padding: 0.35rem;
+  line-height: 0;
+  color: var(--site-fg);
+  border-color: var(--site-fg);
+}
+
+.playground-copy svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+.playground-copy .icon-copied,
+.playground-copy .icon-copy-failed,
+.playground-copy.is-copied .icon-copy,
+.playground-copy.is-failed .icon-copy {
+  display: none;
+}
+
+.playground-copy.is-copied .icon-copied,
+.playground-copy.is-failed .icon-copy-failed {
+  display: block;
+}
+
+.playground-copy:hover {
+  background: var(--site-fg);
+  color: var(--site-bg);
+}
+
 .copy-button:disabled {
   color: #a9dc76;
   border-color: transparent;
   cursor: default;
   background: transparent;
+}
+
+.playground-copy:disabled {
+  color: var(--site-fg);
+  border-color: transparent;
 }
 
 .code-panel pre {
