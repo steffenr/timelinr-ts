@@ -5,6 +5,15 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] — 2026-08-28
+
+### Changed
+
+- The example pages and the website's shared timeline dataset now walk through the modern AI
+  industry's defining moments — ImageNet (2010) to today's agents (2026) — replacing the retired
+  1900–2011 sample story. The `list-alternating` page carries its own uneven-length set of
+  complementary milestones (2011–2026), per its design; date-link icons are fresh Lucide glyphs.
+
 ## [1.2.0] — 2026-08-25
 
 ### Added
