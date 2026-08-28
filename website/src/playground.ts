@@ -1,25 +1,34 @@
 import { createTimeline } from './createTimeline.js';
 import { TIMELINE } from './data/timeline-content.js';
+import { buildSnippet, type SnippetState } from './snippet.js';
 
 /**
  * Playground: ONE real <timelinr-slider>, driven entirely through its public
  * attribute contract. The element rebuilds in place on attribute changes and
  * carries the current index across, so no recreation code is needed here.
  */
-export function initPlayground(mount: HTMLElement, controls: HTMLFormElement): void {
+export function initPlayground(
+  mount: HTMLElement,
+  controls: HTMLFormElement,
+  onStateChange?: (state: SnippetState) => void,
+): void {
+  const state: SnippetState = { variant: 'rail', theme: 'default', autoplay: false };
+
   const timeline = createTimeline(TIMELINE, {
-    variant: 'rail',
+    variant: state.variant,
     arrowKeys: true,
     prevNext: true,
     label: 'Playground timeline',
   });
   mount.append(timeline);
+  onStateChange?.({ ...state });
 
   controls.addEventListener('change', (event) => {
     const input = event.target as HTMLInputElement;
     switch (input.name) {
       case 'variant':
         if (input.checked) {
+          state.variant = input.value as SnippetState['variant'];
           timeline.dataset.timelinrVariant = input.value;
           const isList = input.value === 'list' || input.value === 'list-alternating';
           timeline.querySelectorAll('[data-timelinr-dates] a').forEach((a, i) => {
@@ -40,13 +49,25 @@ export function initPlayground(mount: HTMLElement, controls: HTMLFormElement): v
         break;
       case 'theme':
         if (input.checked) {
+          state.theme = input.value;
           if (input.value === 'default') delete timeline.dataset.timelinrTheme;
           else timeline.dataset.timelinrTheme = input.value;
         }
         break;
       case 'autoplay':
+        state.autoplay = input.checked;
         timeline.dataset.timelinrAutoplay = String(input.checked);
         break;
+      default:
+        return;
     }
+    onStateChange?.({ ...state });
   });
+}
+
+/** Keeps a code block in sync with the playground's configuration. */
+export function renderSnippetInto(target: HTMLElement): (state: SnippetState) => void {
+  return (state) => {
+    target.textContent = buildSnippet(state);
+  };
 }

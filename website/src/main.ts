@@ -4,14 +4,23 @@ import 'timelinr-element';
 import '../../styles/timelinr.css';
 import './styles/site.css';
 
-import { initPlayground } from './playground.js';
+import { initPlayground, renderSnippetInto } from './playground.js';
 import { initCopyButtons } from './copy.js';
 
 
 
 const playgroundMount = document.querySelector<HTMLElement>('#playground-timeline');
 const playgroundControls = document.querySelector<HTMLFormElement>('#playground-controls');
-if (playgroundMount && playgroundControls) initPlayground(playgroundMount, playgroundControls);
+if (playgroundMount && playgroundControls) {
+  // The static markup in index.html is the no-JS fallback; once the playground
+  // is live the snippet mirrors whatever the user has configured.
+  const codeSample = document.querySelector<HTMLElement>('#code-sample code');
+  initPlayground(
+    playgroundMount,
+    playgroundControls,
+    codeSample ? renderSnippetInto(codeSample) : undefined,
+  );
+}
 
 initCopyButtons(document);
 
