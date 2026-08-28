@@ -607,6 +607,13 @@ section {
   padding-top: 1.75rem;
 }
 
+/* `stack` is the one variant with a fixed overall height, and its default is
+   70vh — which makes the stage jump when switching into it. Same 26rem the
+   stack example uses; the copyable snippet declares it too. */
+.playground-stage timelinr-slider[data-timelinr-variant='stack'] {
+  --tl-height: 26rem;
+}
+
 /* ---------- code + install ---------- */
 
 .section-heading p a {
