@@ -1,3 +1,7 @@
+<h1 align="center">
+  <img width="256" alt="logo" src="https://github.com/user-attachments/assets/f84411dd-b525-4c14-9e9d-4a2261388245" />
+</h1>
+
 # timelinr
 
 Framework-agnostic timeline slider. Modern TypeScript rebuild of [jQuery Timelinr](https://www.csslab.cl/2011/08/18/jquery-timelinr/).
