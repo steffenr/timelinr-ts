@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img width="256" alt="logo" src="https://github.com/user-attachments/assets/f84411dd-b525-4c14-9e9d-4a2261388245" />
+  <img width="256" alt="logo" src="https://github.com/user-attachments/assets/2ac5d153-6ff9-4db1-920d-aa6f7bab5e5c" />
 </h1>
 
 # timelinr
