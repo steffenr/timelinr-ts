@@ -778,7 +778,15 @@ describe('scrolling the active entry into view', () => {
   it('re-selecting the active entry still corrects the view', () => {
     const { t, links, items, calls } = setup('list');
     const doc = document.scrollingElement!;
-    const docSpy = vi.spyOn(doc, 'scrollTo').mockImplementation(() => {});
+    // In vitest 5, vi.spyOn on a prototype method does not shadow it on the
+    // instance, so both the prototype and instance spy would see the same call.
+    // Object.defineProperty creates a real own property that shadows it.
+    let docCalls = 0;
+    Object.defineProperty(doc, 'scrollTo', {
+      value: vi.fn(() => { docCalls++; }),
+      writable: true,
+      configurable: true,
+    });
     Object.defineProperty(doc, 'scrollTop', { value: 473, writable: true, configurable: true });
     Object.defineProperty(doc, 'scrollHeight', { value: 1200, configurable: true });
     Object.defineProperty(doc, 'clientHeight', { value: 500, configurable: true });
@@ -787,8 +795,10 @@ describe('scrolling the active entry into view', () => {
 
     t.goTo(0); // already the active index (startAt default) — state no-op
     expect(t.index).toBe(0);
-    expect(docSpy).toHaveBeenCalledTimes(1);
-    expect(docSpy.mock.calls[0]?.[0]).toMatchObject({ top: 268 });
+    expect(docCalls).toBe(1);
+    // Verify the call had the right args (doc.scrollTo was called with top: 268)
+    const docScrollCalls = (doc.scrollTo as any).mock.calls as any[];
+    expect(docScrollCalls[0]?.[0]).toMatchObject({ top: 268 });
     expect(calls()).toHaveLength(0);
   });
 
@@ -800,7 +810,15 @@ describe('scrolling the active entry into view', () => {
   it('user navigation moves the page minimally when internal scrolling cannot reveal the entry', () => {
     const { t, links, items, calls } = setup('list');
     const doc = document.scrollingElement!;
-    const docSpy = vi.spyOn(doc, 'scrollTo').mockImplementation(() => {});
+    // In vitest 5, vi.spyOn on a prototype method does not shadow it on the
+    // instance, so both the prototype and instance spy would see the same call.
+    // Object.defineProperty creates a real own property that shadows it.
+    let docCalls = 0;
+    Object.defineProperty(doc, 'scrollTo', {
+      value: vi.fn(() => { docCalls++; }),
+      writable: true,
+      configurable: true,
+    });
     Object.defineProperty(doc, 'scrollTop', { value: 473, writable: true, configurable: true });
     Object.defineProperty(doc, 'scrollHeight', { value: 1200, configurable: true });
     Object.defineProperty(doc, 'clientHeight', { value: 500, configurable: true });
@@ -811,10 +829,11 @@ describe('scrolling the active entry into view', () => {
     t.goTo(2);
     // no scroll-padding declared → band top is 0; dy = -205 - 0 = -205;
     // scrollTop 473 - 205 = 268, and NOTHING else was scrolled (the doc's own
-    // spy shadows the prototype spy for the doc; the prototype spy staying at
+    // mock shadows the prototype spy for the doc; the prototype spy staying at
     // zero proves no OTHER element was scrolled)
-    expect(docSpy).toHaveBeenCalledTimes(1);
-    expect(docSpy.mock.calls[0]?.[0]).toMatchObject({ top: 268 });
+    expect(docCalls).toBe(1);
+    const docScrollCalls = (doc.scrollTo as any).mock.calls as any[];
+    expect(docScrollCalls[0]?.[0]).toMatchObject({ top: 268 });
     expect(calls()).toHaveLength(0);
   });
 
@@ -884,6 +903,19 @@ describe('scrolling the active entry into view', () => {
       variant === 'rail'
         ? root.querySelector<HTMLElement>('[data-timelinr-dates]')!
         : root.querySelector<HTMLElement>('[data-timelinr-dates] ul')!;
+    // In vitest 5, vi.spyOn on a prototype method does not shadow it on the
+    // instance, so we shadow the document's scrollTo with an own property to
+    // keep the prototype spy's call count clean for internal containers only.
+    const doc = document.scrollingElement!;
+    const docScroll = vi.fn();
+    Object.defineProperty(doc, 'scrollTo', {
+      value: docScroll,
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(doc, 'scrollTop', { value: 0, writable: true, configurable: true });
+    Object.defineProperty(doc, 'scrollHeight', { value: 1200, configurable: true });
+    Object.defineProperty(doc, 'clientHeight', { value: 500, configurable: true });
     makeScroller(strip);
     Object.defineProperty(strip, 'scrollLeft', { value: 0, writable: true, configurable: true });
     Object.defineProperty(strip, 'scrollTop', { value: 0, writable: true, configurable: true });
@@ -914,6 +946,19 @@ describe('scrolling the active entry into view', () => {
     const clip =
       document.querySelector<HTMLElement>('[data-timelinr-dates]') ??
       links[2]!.closest<HTMLElement>('div')!;
+    const doc = document.scrollingElement!;
+    // Shadow the prototype spy on the document so it doesn't count as an
+    // internal scroll — in vitest 5, vi.spyOn on a prototype method does not
+    // shadow it on the instance, so we use Object.defineProperty for a real own
+    // property.
+    Object.defineProperty(doc, 'scrollTo', {
+      value: vi.fn(() => {}),
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(doc, 'scrollTop', { value: 0, writable: true, configurable: true });
+    Object.defineProperty(doc, 'scrollHeight', { value: 2000, configurable: true });
+    Object.defineProperty(doc, 'clientHeight', { value: 300, configurable: true });
     clip.style.overflowY = 'hidden';
     Object.defineProperty(clip, 'scrollTop', { value: 0, writable: true, configurable: true });
     Object.defineProperty(clip, 'scrollHeight', { value: 2000, configurable: true });
