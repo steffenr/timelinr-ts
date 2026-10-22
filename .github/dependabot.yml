@@ -1,0 +1,14 @@
+version: 2
+updates:
+  # keep the workflow actions current (grouped into one PR)
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
